@@ -1,0 +1,160 @@
+concept lnwordstart lnwordend labels
+"angap" 65:25 65:25 0
+"coronary artery bypass graft" 115:4 115:7 1
+"coronary artery disease" 115:0 115:2 2
+"plavix" 84:18 84:18 1
+"the procedure" 69:2 69:3 1
+"lisinopril" 110:1 110:1 1
+"blood" 65:3 65:3 0
+"blood" 63:3 63:3 0
+"blood" 64:3 64:3 0
+"furosemide" 106:1 106:1 1
+"beta blockers" 72:0 72:1 1
+"flexeril" 84:13 84:13 1
+"pt" 63:4 63:4 0
+"burst of atrial fibrillation" 75:3 75:6 2
+"amiodarone" 96:1 96:1 1
+"a amiodarone gtt" 75:11 75:13 1
+"antibiotics" 80:15 80:15 1
+"left arm phlebitis" 80:8 80:10 2
+"atorvastatin" 94:1 94:1 1
+"glucose" 65:4 65:4 0
+"urean" 64:4 64:4 0
+"further episodes of afib" 79:3 79:6 2
+"toprol" 84:5 84:5 1
+"ascorbic acid" 102:1 102:2 1
+"mildly thickened" 51:5 51:6 2
+"severe 3 vessel disease" 20:2 20:5 2
+"appropriate meds" 81:11 81:12 1
+"post-bypass" 53:0 53:0 1
+"antibiotics" 81:9 81:9 1
+"mcv" 60:20 60:20 0
+"mildly dilated" 46:5 46:6 2
+"metoprolol succinate" 98:1 98:2 1
+"vna services" 82:3 82:4 1
+"mcv" 61:20 61:20 0
+"ferrous gluconate" 100:1 100:2 1
+"chest tubes" 77:0 77:1 1
+"blood" 61:3 61:3 0
+"a coronary artery bypass graft" 67:19 67:23 1
+"inr(pt)" 62:11 62:11 0
+"blood" 62:3 62:3 0
+"hypertension" 116:6 116:6 2
+"inr(pt)" 63:7 63:7 0
+"maximal bp and hr control" 76:7 76:11 1
+"blood" 60:3 60:3 0
+"hco3" 65:22 65:22 0
+"his beta blockers" 76:0 76:2 1
+"carpal tunnel syndrome" 116:2 116:4 2
+"cl" 65:19 65:19 0
+"increased pain" 121:10 121:11 2
+"ice" 128:6 128:6 1
+"any weight gain" 123:1 123:3 2
+"na" 65:13 65:13 0
+"any fever greater than 101" 122:1 122:5 2
+"k" 65:16 65:16 0
+"surgical incision" 134:1 134:2 2
+"creams" 124:1 124:1 1
+"incisions" 124:10 124:10 2
+"all antibiotics" 128:10 128:11 1
+"cath" 19:14 19:14 0
+"abnormal ett" 19:9 19:10 2
+"elevation" 128:4 128:4 1
+"powders" 124:5 124:5 1
+"docusate sodium" 86:1 86:2 1
+"mvi" 84:11 84:11 1
+"wbc" 60:4 60:4 0
+"lotions" 124:3 124:3 1
+"wbc" 61:4 61:4 0
+"ointments" 124:8 124:8 1
+"pt" 62:4 62:4 0
+"oxycodone - acetaminophen" 92:1 92:3 1
+"pain" 92:21 92:21 2
+"cephalexin" 104:1 104:1 1
+"redness" 121:5 121:5 2
+"potassium chloride" 108:1 108:2 1
+"drainage" 121:7 121:7 2
+"urean" 65:7 65:7 0
+"arthritis" 23:8 23:8 2
+"varicosities" 37:9 37:9 2
+"worsening shortness of breath." 19:4 19:7 2
+"surgical intervention" 21:3 21:4 1
+"hyperlipidemia" 23:6 23:6 2
+"edema" 37:6 37:6 2
+"echo" 40:0 40:0 0
+"hypertension" 23:4 23:4 2
+"drugs" 12:8 12:8 1
+"known allergies" 12:5 12:6 2
+"simple atheroma in the descending thoracic aorta" 47:2 47:8 2
+"diuresed" 73:2 73:2 1
+"carpal tunnel syndrome" 23:0 23:2 2
+"bell's palsy" 23:11 23:12 2
+"mild inferior wall hypokinesis" 42:2 42:5 2
+"aortic regurgitation" 50:1 50:2 2
+"cath" 20:0 20:0 0
+"hco3" 64:14 64:14 0
+"free wall motion" 45:5 45:7 0
+"sedation" 70:8 70:8 1
+"aortic valve stenosis" 49:3 49:5 2
+"rbc" 60:8 60:8 0
+"shortness of breath" 15:0 15:2 2
+"pneumothorax" 59:1 59:1 2
+"left lower lobe atelectasis" 56:3 56:6 2
+"lv and rv function" 53:2 53:5 0
+"cxr" 56:0 56:0 0
+"trivial mitral regurgitation" 52:0 52:2 2
+"creat" 65:10 65:10 0
+"his pre-op weight" 73:4 73:6 0
+"mild postoperative widening of the cardiomediastinal silhouette" 58:0 58:6 2
+"coronary artery bypass graft" 17:0 17:3 1
+"cabg" 28:8 28:8 1
+"mi" 28:2 28:2 2
+"left ventricular wall thicknesses" 40:5 40:8 0
+"saphaneous vein graft -> posterior descending artery" 17:21 17:27 1
+"physical therapy" 78:14 78:15 1
+"the left ventricular cavity size" 41:0 41:4 0
+"right ventricular chamber size" 45:0 45:3 0
+"saphaneous vein graft -> obtuse marginal" 17:14 17:19 1
+"epicardial pacing wires" 77:9 77:11 1
+"invasive monitoring" 69:12 69:13 0
+"w/r/r" 34:4 34:4 2
+"po amiodarone" 79:9 79:10 1
+"thinning of the mid to distal inferior septum" 43:6 43:13 2
+"aspirin" 84:0 84:0 1
+"plt ct" 60:32 60:33 0
+"nc/at" 32:6 32:6 2
+"akinesis" 43:2 43:2 2
+"cl" 64:10 64:10 0
+"carotid bruits" 33:10 33:11 2
+"rdw" 60:29 60:29 0
+"hct" 61:16 61:16 0
+"overall left ventricular systolic function" 44:0 44:4 0
+"mildly depressed" 44:6 44:7 2
+"mch" 60:23 60:23 0
+"rbc" 61:8 61:8 0
+"mchc" 60:26 60:26 0
+"mch" 61:23 61:23 0
+"dyskinesis" 43:4 43:4 2
+"creat" 64:7 64:7 0
+"hgb" 61:12 61:12 0
+"hgb" 60:12 60:12 0
+"c/r/m/g" 35:4 35:4 2
+"hct" 60:16 60:16 0
+"wounds" 121:1 121:1 2
+"infection" 121:3 121:3 2
+"plt ct" 61:32 61:33 0
+"rdw" 61:29 61:29 0
+"tonsillectomy" 23:17 23:17 1
+"hoh" 23:14 23:14 2
+"arthritis" 116:10 116:10 2
+"mchc" 61:26 61:26 0
+"ptt" 62:8 62:8 0
+"ranitidine hcl" 90:1 90:2 1
+"hyperlipidemia" 116:8 116:8 2
+"diuretics" 72:3 72:3 1
+"jvd" 33:7 33:7 2
+"aspirin" 88:1 88:1 1
+"vs" 30:0 30:0 0
+"left internal mammary -> left anterior descending" 17:6 17:12 1
+"nt/nd" 36:4 36:4 2
+"nad" 31:5 31:5 2
