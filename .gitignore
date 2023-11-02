@@ -3,3 +3,7 @@
 
 # Ignore the cs7643-a5 environment
 cs7643-a5/
+*.bin
+*.pyc
+*.pt
+*.pth
