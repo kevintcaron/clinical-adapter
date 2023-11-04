@@ -9,3 +9,4 @@ cs7643-a5/
 *.pth
 .idea/
 .ipynb_checkpoints/
+.models/
