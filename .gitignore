@@ -7,3 +7,5 @@ cs7643-a5/
 *.pyc
 *.pt
 *.pth
+.idea/
+.ipynb_checkpoints/

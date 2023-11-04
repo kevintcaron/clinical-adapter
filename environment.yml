@@ -2,6 +2,7 @@ name: clinical-adapter
 channels:
 - defaults
 - pytorch
+- conda-forge
 dependencies:
 - python=3.8
 - numpy
@@ -10,7 +11,6 @@ dependencies:
 - scikit-learn
 - pytorch
 - torchvision
-- adapter-transformers
 - pip
 - pip:
   - spacy
@@ -19,3 +19,5 @@ dependencies:
   - datasets
   - accelerate
   - https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.4.0/en_ner_bc5cdr_md-0.4.0.tar.gz
+  - adapter-transformers
+
