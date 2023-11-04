@@ -1,0 +1,31 @@
+Suggested folder structure:
+
+/clinical-adapter
+    /data
+      /preprocessed-data
+    /utils
+        /data-utils
+        /model-utils
+
+        /adapter-utils
+    /experiments
+        /ner
+            /bert
+            /clinicalbert
+        /ast
+            /bert
+            /clinicalbert
+    /models
+    /adapters
+    /configs
+    /extra
+    main.py - based on configs to run each experiment
+    environment.yaml
+    Readme.md
+
+Suggestions:
+
+- Move all exisitng folders to /extra
+- To merge PRs only after review
+- To use reusabel functions
+  
