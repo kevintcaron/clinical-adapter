@@ -1,0 +1,13 @@
+Train:
+  model: clinicalbert # bert or clinicalbert
+  finetune: head # head or full
+  lr: 0.00001
+  epochs: 1
+  batch: 8
+  adapter: True # True or False
+  adapter_method: Houlsby, ## Pfeiffer,Houlsby need to change to new adapters : seq_bn ,seq_bn,double_seq_bn  - https://docs.adapterhub.ml/overview.html
+  hd: arm # intel or arm
+
+data:
+  i2b2: training # all, training
+  frac: 0.2
