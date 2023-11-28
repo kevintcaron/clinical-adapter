@@ -1,8 +1,5 @@
 import os
-import re
-import en_ner_bc5cdr_md
 import spacy
-import copy
 import yaml
 import pandas as pd
 import numpy as np
@@ -10,7 +7,6 @@ import evaluate
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from transformers import AutoTokenizer, DataCollatorWithPadding
 from datasets import Dataset, DatasetDict
 import torch 
 from transformers import TrainingArguments, Trainer
@@ -19,21 +15,20 @@ from utils import AssertionDatai2b2
 from transformers import AutoModelForSequenceClassification,BertAdapterModel
 from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction, AutoAdapterModel
 import argparse
-#from transformers.adapters import BnConfig,SeqBnConfig,DoubleSeqBnConfig (new version)
+# from transformers.adapters import BnConfig,SeqBnConfig,DoubleSeqBnConfig (new version)
 from transformers.adapters import PfeifferConfig,HoulsbyConfig
+
 # Set a random seed for reproducibility
 seed = 42
 torch.manual_seed(seed)
 np.random.seed(seed)
 spacy.util.fix_random_seed(seed)
 
-
-
 def _split_data(all_line_data_filtered_df,frac):
-    # LINE DATA TEST
-    # Test on frac% of data. Split to training, validation, and test sets
     all_line_data_filtered_df_frac = all_line_data_filtered_df.sample(frac=frac).copy()
 
+    print("fraction of examples to used for training: {:.2f}".format(frac))
+    print("number of examples after sampling: {:,}\n".format(all_line_data_filtered_df_frac.shape[0]))
 
     X = all_line_data_filtered_df_frac['new_line']
     y = all_line_data_filtered_df_frac['label']
@@ -53,6 +48,7 @@ def _create_datasets(train,valid,test):
     (X_train,y_train) = train
     (X_valid,y_valid)= valid
     (X_test ,y_test)= test
+    print()
     print("Encoding Labels .....")
     encoder = LabelEncoder()
     encoder.fit(y_train)
@@ -67,8 +63,6 @@ def _create_datasets(train,valid,test):
     train_df['label'] = y_train_encode.tolist()
     valid_df['label'] = y_valid_encode.tolist()
     test_df['label'] = y_test_encode.tolist()
-
-    print(train_df.head())
 
     ds = DatasetDict ({
     'train': Dataset.from_pandas(train_df),
@@ -87,17 +81,6 @@ def compute_metrics(eval_pred):
 def _setup_parser():
     """Set up Python's ArgumentParser with data, model, trainer, and other arguments."""
     parser = argparse.ArgumentParser(add_help=False)
-    
-    # # Basic arguments
-    # parser.add_argument("--exp_name",type=str,default='bert_full_fintune')
-    # parser.add_argument("--model", type=str, default='bert')
-    # parser.add_argument("--adapter",action='store_true')
-    # parser.add_argument("--lr", type=float, default=1e-5)
-    # parser.add_argument("--epochs", type=int, default=1)
-    # parser.add_argument("--batch",type=int, default=8)
-    # parser.add_argument("--finetune",type=str,default='head')
-    # parser.add_argument("--frac",type=float, default=0.05)
-    # parser.add_argument("--hd",type=str,default='intel')
     parser.add_argument('--config', default='./config.yaml')
     parser.add_argument("--help", "-h", action="help")
 
@@ -109,14 +92,15 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
     model = model.to(device)
     special_tokens_dict = {"additional_special_tokens": ["[entity]"]}
     num_added_toks = tokenizer.add_special_tokens(special_tokens_dict,False)
+    print()
     print("We have added", num_added_toks, "tokens")
+    print()
     # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
     model.resize_token_embeddings(len(tokenizer))
-        # LINE DATA TEST
+
     def tokenize_function(example):
         return tokenizer(example["new_line"],   padding="max_length", truncation=True)
     
-    # LINE DATA TEST
     # Takes ds dataset and tokenizes
     tokenized_ds = ds.map(tokenize_function, batched=True)
     tokenized_ds = tokenized_ds.rename_column("label", "labels")
@@ -124,15 +108,30 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
     tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
     tokenized_ds.set_format("torch")
 
+    # training_args = TrainingArguments(
+    #     output_dir=output_dir,
+    #     evaluation_strategy="epoch",
+    #     learning_rate= lr,
+    #     num_train_epochs= epochs,
+    #     logging_dir="./logs",
+    #     log_level="info",
+    #     logging_steps=10,
+    #     report_to="all")
+
     training_args = TrainingArguments(
-        output_dir=output_dir, 
-        evaluation_strategy="epoch", 
-        learning_rate= lr, 
+        output_dir=output_dir,
+        learning_rate= lr,
         num_train_epochs= epochs,
+        per_device_train_batch_size=8,
+        evaluation_strategy="epoch",
+        save_strategy="epoch",  # Save model checkpoints at the end of each epoch
         logging_dir="./logs",
-        log_level="info",
-        logging_steps=10,
-        report_to="all")
+        logging_steps=100,
+        save_total_limit=2,  # Only keep the last 2 checkpoints
+        load_best_model_at_end=True,
+        metric_for_best_model="accuracy",  # Change to the metric you care about
+        push_to_hub=False,
+    )
     
     if adapter:
         trainer = AdapterTrainer(
@@ -142,20 +141,28 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
             eval_dataset=tokenized_ds['validation'],
             compute_metrics=compute_metrics)
     else:
-
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=tokenized_ds['train'],
             eval_dataset=tokenized_ds['validation'],
             compute_metrics=compute_metrics)
-    
-    trainer.train()
+
+    try:
+        trainer.train()
+    except Exception as e:
+        print(e)
+        print("Model Fine-tuning Failed")
+    finally:
+        model.save_pretrained(output_dir)
+        tokenizer.save_pretrained(output_dir)
+        print()
+        print("Model Fine-tuning Completed Successfully")
+
 
 def main():
-    
+
     parser = _setup_parser()
-    
     args = parser.parse_args()
     with open(args.config) as f:
         config = yaml.safe_load(f)
@@ -163,7 +170,6 @@ def main():
     for key in config:
         for k, v in config[key].items():
             setattr(args, k, v)
-    
 
     preprocessed_data_path = "Data/preprocessed-data"
     train_data_path = "Data/concept_assertion_relation_training_data"
@@ -171,18 +177,19 @@ def main():
     test_data_path = "Data/test_data"
     task_name = 'ast-detection'
 
-    
     ast_i2b2 = AssertionDatai2b2(preprocessed_data_path=preprocessed_data_path,
                                  train_data_path=train_data_path,
                                  reference_test_data_path=reference_test_data_path,
                                  test_data_path=test_data_path)
     
-    training_ast,test_ast,all_ast = ast_i2b2.load_assertion_i2b2_data()
+    beth_and_partners_ast, all_ast = ast_i2b2.load_assertion_i2b2_data()
 
     if args.i2b2 == 'all':
-        train_data,valid_data, test_data = _split_data(all_ast,args.frac)
+        train_data, valid_data, test_data = _split_data(all_ast,args.frac)
+    elif args.i2b2 == 'beth_and_partners':
+        train_data, valid_data, test_data = _split_data(beth_and_partners_ast,args.frac)
     else:
-        train_data,valid_data, test_data = _split_data(training_ast,args.frac)
+        raise ValueError("i2b2 argument must be either 'all' or 'beth_and_partners'")
     
     ds = _create_datasets(train_data,valid_data, test_data)
 
@@ -193,20 +200,33 @@ def main():
     elif args.hd == 'intel':
         # FOR NVIDIA GPU
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print()
         print("device in use:", device)
+        print("GPU in use:", torch.cuda.get_device_name(0))
+        print()
 
-        # # If using GPU, set seed for CUDA operations
+        # If using GPU, set seed for CUDA operations
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
-    
+    else:
+        device = torch.device('cpu')
+
+    # Assign model and output directory
     if args.model == 'clinicalbert':
         pretrained_model_name_or_path = "emilyalsentzer/Bio_Discharge_Summary_BERT"
         output_dir= "clinicalbert_trainer"
+        os.makedirs(output_dir, exist_ok=True)
     elif args.model == "bert":
         pretrained_model_name_or_path = "bert-base-uncased"
         output_dir= "bert_trainer"
+        os.makedirs(output_dir, exist_ok=True)
+    else:
+        raise ValueError("model argument must be either 'clinicalbert' or 'bert'")
 
+    # Assign use of adapter or not
     if args.adapter:
+
+        # TODO: update to new adapters version
         tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
         model = BertAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
         
@@ -218,15 +238,21 @@ def main():
         model.train_adapter(task_name)
         model.add_classification_head(task_name, num_labels=3,id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
         model.set_active_adapters(task_name)
+
     else:
         tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
         model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
                                                                     num_labels=3,
                                                                     id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
-        
+
+        # If fine-tuning head only, freeze the base model
         if args.finetune == 'head':
             for name,layer in model.base_model.named_parameters():
-                layer.require_grad = False
+                layer.requires_grad = False
+        elif args.finetune == 'full':
+            pass
+        else:
+            raise ValueError("finetune argument must be either 'head' or 'full'")
 
     train(ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device)
 

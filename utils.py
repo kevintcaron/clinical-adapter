@@ -1,20 +1,6 @@
 import os
 import re
-import en_ner_bc5cdr_md
-import spacy
-import copy
 import pandas as pd
-import numpy as np
-import evaluate
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from transformers import AutoTokenizer, DataCollatorWithPadding
-from datasets import Dataset, DatasetDict
-import torch 
-from transformers import TrainingArguments, Trainer
-from torch.optim import AdamW
-
 
 class AssertionDatai2b2():
     def __init__(self,preprocessed_data_path,train_data_path,reference_test_data_path,test_data_path) -> None:
@@ -25,63 +11,17 @@ class AssertionDatai2b2():
 
     def load_clinical_notes(self):
         # Get paths for data and labels
+        print()
+        print("Loading data...")
         cwd  = os.getcwd()
-        processed_path = os.path.join(cwd, f"{self.preprocessed_data_path}")
         labels_path_beth = os.path.join(cwd,f"{self.train_data_path}","beth","ast")
         data_path_beth = os.path.join(cwd,f"{self.train_data_path}","beth","txt")
         labels_path_partners = os.path.join(cwd,f"{self.train_data_path}","partners","ast")
         data_path_partners = os.path.join(cwd,f"{self.train_data_path}","partners","txt")
         labels_path_test = os.path.join(cwd,f"{self.reference_test_data_path}","ast")
         data_path_test = os.path.join(cwd,f"{self.test_data_path}")
-        print('beth ast path', labels_path_beth)
-        print('beth txt path', data_path_beth)
-        print('partners ast path', labels_path_partners)
-        print('partners txt path', data_path_partners)
-        print('test ast path', labels_path_test)
-        print('test txt path', data_path_test)
 
         return labels_path_beth,data_path_beth,labels_path_partners,data_path_partners,labels_path_test,data_path_test
-        
-    def clean_text(self,text):
-        """
-        Applies some pre-processing on the given text.
-        Returns clean text
-        
-        Steps :
-        - Removes HTML tags
-        - Removes punctuation
-        - lowers text
-        """
-        text = re.sub(r'<.*?>', '', text)
-        text = re.sub(r"\\", "", text)    
-        text = re.sub(r"\'", "", text)    
-        text = re.sub(r"\"", "", text)    
-        text = text.strip().lower()
-        text = re.sub(r'[^\x00-\x7f]',r'', text) 
-        filters='!"\'#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n'
-        translate_dict = dict((c, " ") for c in filters)
-        translate_map = str.maketrans(translate_dict)
-        text = text.translate(translate_map)
-        text = " ".join(text.split())
-        
-        return text
-
-    def remove_adjacent_periods(self,text):
-        """
-        Takes a text string
-        Returns the text string without adjacent periods (see 'Dr.' to 'Dr' below while keeping end period)
-        
-        For example:
-        input: 'Admitted directly to OR from ambulance transfer and underwent cabg x3 with Dr. Howard on 06-13 .'
-        output: 'Admitted directly to OR from ambulance transfer and underwent cabg x3 with Dr Howard on 06-13 .'
-
-        This is needed for preventing the sentencizer from splitting on periods that are inside sentences.
-        
-        """
-        pattern = re.compile(r'(?<=\S)\.')
-        modified_text = re.sub(pattern, '', text)
-        
-        return modified_text
 
     def list_files_in_directory(self,directory_path):
         """
@@ -130,12 +70,10 @@ class AssertionDatai2b2():
             _file = os.path.join(labels_path, note + '.ast')
             with open(_file) as f:
                 content = f.read()
-                line_dict = {}
-                for line in content:
-                    
-                    
+                if content != '':
                     labels_notes[note] = content
-                
+                else:
+                    print('no labels for', note)
         f.close()
         return labels_notes
 
@@ -247,15 +185,20 @@ class AssertionDatai2b2():
                 s_tok = new_labels[record][key]['location'][1]
                 e_line = new_labels[record][key]['location'][2]
                 e_tok = new_labels[record][key]['location'][3]
+
+                if s_line != e_line:
+                    print('ERROR: entity spans multiple lines. Check record:')
+                    print(record, key)
+                    print(new_labels[record][key])
+                    print(new_content[record][s_line])
+                    print(new_content[record][e_line])
+                    print()
+                else:
+                    pass
+
                 assertion = new_labels[record][key]['assertion']
                 entity = new_labels[record][key]['problem']
                 old_line = new_content[record][s_line]
-                
-    #             entity = clean_text(entity)
-    #             old_line = clean_text(old_line)
-                entity = self.remove_adjacent_periods(entity)
-                old_line = self.remove_adjacent_periods(old_line)
-                
                 words = old_line.split()
                 words.insert(s_tok, '[entity]')
                 words.insert(e_tok + 2, '[entity]')
@@ -311,27 +254,27 @@ class AssertionDatai2b2():
         all_content_dict = {**training_content_dict, **test_content_dict}
 
         # Print the number of records for each dictionary
+        print()
         print("number of beth training records:", len(beth_content_dict))
         print("number of partners training records:", len(partners_content_dict))
         print("number of all test records:", len(test_content_dict))
-        print("number of combined beth and partners records:", len(training_content_dict))
-        print("number of all combined records:", len(all_content_dict))
-
+        print("total number of all combined records:", len(all_content_dict))
+        print()
 
         beth_labels_dict  = self.load_record_labels_dict(notes_beth, labels_path_beth)
         partners_labels_dict = self.load_record_labels_dict(notes_partners, labels_path_partners)
         test_labels_dict = self.load_record_labels_dict(notes_test, labels_path_test)
 
-        # # Merge the labels dictionaries into one
+        # Merge the labels dictionaries into one
         training_labels_dict = {**beth_labels_dict, **partners_labels_dict}
         all_labels_dict = {**training_labels_dict, **test_labels_dict}
 
-        # Print the number of records conatining labels for each dictionary
+        # Print the number of records containing labels for each dictionary
+        print()
         print("number of beth records with labels:", len(beth_labels_dict))
         print("number of partners records with labels:", len(partners_labels_dict))
         print("number of test records with labels:", len(test_labels_dict))
-        print("number of combined beth and partners records with labels:", len(training_labels_dict))
-        print("number of all combined records with labels:", len(all_labels_dict))
+        print("total number of all combined records with labels:", len(all_labels_dict))
 
         training_labels = self.create_labels_dict(training_labels_dict)
         test_labels = self.create_labels_dict(test_labels_dict)
@@ -353,4 +296,23 @@ class AssertionDatai2b2():
         test_line_data_filtered_df = self.filter_data(test_line_data_df)
         all_line_data_filtered_df = self.filter_data(all_line_data_df)
 
-        return training_line_data_filtered_df,test_line_data_filtered_df,all_line_data_filtered_df
+        # Write the dataframes to csv
+        cwd  = os.getcwd()
+        path = os.path.join(cwd, f"{self.preprocessed_data_path}", "ast_line_data.csv")
+        training_line_data_filtered_df.to_csv(path, index=False)
+
+        # print the number of examples in each dataframe
+        print()
+        print("number of beth_and_partners examples:", len(training_line_data_filtered_df))
+        print("number of test examples:", len(test_line_data_filtered_df))
+        print("total number of combined examples:", len(all_line_data_filtered_df))
+        print()
+
+        return training_line_data_filtered_df, all_line_data_filtered_df
+
+    def load_assertion_i2b2_data_from_file(self):
+        cwd  = os.getcwd()
+        path = os.path.join(cwd, f"{self.preprocessed_data_path}", "ast_line_data.csv")
+        all_line_data_filtered_df = pd.read_csv(path)
+        return all_line_data_filtered_df
+
