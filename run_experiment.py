@@ -12,7 +12,8 @@ from transformers import TrainingArguments, Trainer
 from torch.optim import AdamW
 from utils import AssertionDatai2b2
 from transformers import AutoModelForSequenceClassification, AutoModel, AutoTokenizer # ,BertAdapterModel
-from adapters import AdapterSetup, AutoAdapterModel
+from adapters import AdapterSetup, AutoAdapterModel,AdapterTrainer
+from adapters import SeqBnConfig,DoubleSeqBnConfig
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import time
 
@@ -106,37 +107,10 @@ def _setup_parser():
 
     return parser
 
-def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:float,epochs:int, 
-                            output_dir:str, device:str, args):
+def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:float,epochs:int, 
+                            output_dir:str, device:str, task_name:str,args):
     
     model = model.to(device)
-    special_tokens_dict = {"additional_special_tokens": ["[entity]"]}
-    num_added_toks = tokenizer.add_special_tokens(special_tokens_dict,False)
-    print()
-    print("We have added", num_added_toks, "tokens")
-    print()
-    # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
-    model.resize_token_embeddings(len(tokenizer))
-
-    def tokenize_function(example):
-        return tokenizer(example["new_line"],   padding="max_length", truncation=True)
-    
-    # Takes ds dataset and tokenizes
-    tokenized_ds = ds.map(tokenize_function, batched=True)
-    tokenized_ds = tokenized_ds.rename_column("label", "labels")
-    tokenized_ds = tokenized_ds.remove_columns(["new_line"])
-    tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
-    tokenized_ds.set_format("torch")
-
-    # If fine-tuning head only, freeze the base model
-    if args.finetune == 'head':
-        for name, layer in model.base_model.named_parameters():
-            layer.requires_grad = False
-    elif args.finetune == 'full':
-        pass
-    else:
-        raise ValueError("finetune argument must be either 'head' or 'full'")
-
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print()
     print(f"Number of trainable parameters: {num_params}")
@@ -175,8 +149,11 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
 
     try:
         trainer.train()
-        model.save_pretrained(output_dir)
-        tokenizer.save_pretrained(output_dir)
+        if adapter:
+            model.save_adapter(f"adapter_{task_name}", task_name,with_head=True)
+        else:
+            model.save_pretrained(output_dir)
+            tokenizer.save_pretrained(output_dir)
         print("Model Fine-tuning Completed")
     except Exception as e:
         print(e)
@@ -198,7 +175,7 @@ def main():
     train_data_path = "Data/concept_assertion_relation_training_data"
     reference_test_data_path = "Data/reference_standard_for_test_data"
     test_data_path = "Data/test_data"
-    task_name = 'ast-detection'
+    task_name = 'ast'
 
     ast_i2b2 = AssertionDatai2b2(preprocessed_data_path=preprocessed_data_path,
                                  train_data_path=train_data_path,
@@ -246,19 +223,38 @@ def main():
     else:
         raise ValueError("model argument must be either 'clinicalbert' or 'bert'")
 
+    tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
+
+    special_tokens_dict = {"additional_special_tokens": ["[entity]"]}
+    num_added_toks = tokenizer.add_special_tokens(special_tokens_dict,False)
+    print()
+    print("We have added", num_added_toks, "tokens")
+    print()
+
+
+    def tokenize_function(example):
+        return tokenizer(example["new_line"],   padding="max_length", truncation=True)
+    
+    # Takes ds dataset and tokenizes
+    tokenized_ds = ds.map(tokenize_function, batched=True)
+    tokenized_ds = tokenized_ds.rename_column("label", "labels")
+    tokenized_ds = tokenized_ds.remove_columns(["new_line"])
+    tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
+    tokenized_ds.set_format("torch")
+
+
     # Assign use of adapter or not
     if args.adapter:
-
-        # TODO: update to new adapters version
-        tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
         # model = BertAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
         model = AutoAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
-
+        
+        # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
+        model.resize_token_embeddings(len(tokenizer))
         #PfeifferConfig,HoulsbyConfig
-        if args.adapter_method == 'Pfeiffer':
-            model.add_adapter(task_name,config=PfeifferConfig())
+        if args.adapter_method == 'SeqBnConfig':
+            model.add_adapter(task_name,config=SeqBnConfig(reduction_factor=args.reduction_factor))
         else:
-            model.add_adapter(task_name,config=HoulsbyConfig())
+            model.add_adapter(task_name,config=DoubleSeqBnConfig(reduction_factor=args.reduction_factor))
         model.train_adapter(task_name)
         model.add_classification_head(task_name, num_labels=3,id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
         model.set_active_adapters(task_name)
@@ -268,8 +264,18 @@ def main():
         model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
                                                                     num_labels=3,
                                                                     id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
-        
-    #wandb setup
+        # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
+        model.resize_token_embeddings(len(tokenizer))
+    
+            # If fine-tuning head only, freeze the base model
+        if args.finetune == 'head':
+            for name, layer in model.base_model.named_parameters():
+                layer.requires_grad = False
+        elif args.finetune == 'full':
+            pass
+        else:
+            raise ValueError("finetune argument must be either 'head' or 'full'")
+    
     if args.wandb:
         os.environ["WANDB_PROJECT"] = "clinical-bert"  
         os.environ["WANDB_LOG_MODEL"] = "checkpoint"
@@ -277,8 +283,8 @@ def main():
         is_adapter = "-adapter" if args.adapter else ""
         timestamp = int(time.time())
         os.environ["WANDB_RUN_NAME"] = f"{task_name}-{args.model}-{args.finetune}{is_adapter}-{timestamp}"
-
-    train(ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device, args)
+    
+    train(tokenized_ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device, task_name, args)
 
 
     # TODO
