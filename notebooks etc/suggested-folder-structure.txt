@@ -1,0 +1,38 @@
+Suggested folder structure:
+
+/clinical-adapter
+    /data
+      /preprocessed-data - save as npy or npz? (keep private)
+    /utils
+        /data-utils
+        /model-utils
+
+        /adapter-utils
+    /experiments - scripts here and outputs for each experiment (maybe don't need scripts here)
+        /ner
+            /bert - e.g. bert script, bert result
+            /clinicalbert
+        /ast
+            /bert
+            /clinicalbert
+    /models - output models (might want to seperate models into type)
+        /ner
+            /bert - e.g. ner bert models
+            /clinicalbert
+        /ast
+            /bert
+            /clinicalbert
+    /adapters - output adapters
+    /configs
+    /extra
+    main.py - based on configs to run each experiment (load config, run exp)
+	    - has base code for running exps, calls other scripts specific to model running
+    environment.yaml
+    Readme.md
+
+Suggestions:
+
+- Move all exisitng folders to /extra
+- To merge PRs only after review
+- To use reusabel functions
+  

@@ -2,6 +2,8 @@
 # *.log
 
 # Ignore the cs7643-a5 environment
+clinbert_trainer/
+clinicalbert_trainer/
 cs7643-a5/
 *.bin
 *.pyc
