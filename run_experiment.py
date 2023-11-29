@@ -12,11 +12,13 @@ import torch
 from transformers import TrainingArguments, Trainer
 from torch.optim import AdamW
 from utils import AssertionDatai2b2
-from transformers import AutoModelForSequenceClassification,BertAdapterModel
-from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction, AutoAdapterModel
+from transformers import AutoModelForSequenceClassification, AutoModel, AutoTokenizer # ,BertAdapterModel
+from adapters import AdapterSetup, AutoAdapterModel
+
+# from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction# , AutoAdapterModel
 import argparse
-from transformers.adapters import BnConfig,SeqBnConfig,DoubleSeqBnConfig # (new version)
-from transformers.adapters import PfeifferConfig,HoulsbyConfig
+# from transformers.adapters import BnConfig,SeqBnConfig,DoubleSeqBnConfig # (new version)
+# from transformers.adapters import PfeifferConfig,HoulsbyConfig
 
 # Set a random seed for reproducibility
 seed = 42
@@ -87,7 +89,7 @@ def _setup_parser():
     return parser
 
 def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:float,epochs:int, 
-                            output_dir:str, device:str):
+                            output_dir:str, device:str, args):
     
     model = model.to(device)
     special_tokens_dict = {"additional_special_tokens": ["[entity]"]}
@@ -96,7 +98,7 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
     print("We have added", num_added_toks, "tokens")
     print()
     # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
-    # model.resize_token_embeddings(len(tokenizer))
+    model.resize_token_embeddings(len(tokenizer))
 
     def tokenize_function(example):
         return tokenizer(example["new_line"],   padding="max_length", truncation=True)
@@ -107,6 +109,20 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
     tokenized_ds = tokenized_ds.remove_columns(["new_line"])
     tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
     tokenized_ds.set_format("torch")
+
+    # If fine-tuning head only, freeze the base model
+    if args.finetune == 'head':
+        for name, layer in model.base_model.named_parameters():
+            layer.requires_grad = False
+    elif args.finetune == 'full':
+        pass
+    else:
+        raise ValueError("finetune argument must be either 'head' or 'full'")
+
+    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print()
+    print(f"Number of trainable parameters: {num_params}")
+    print()
 
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -141,13 +157,12 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
 
     try:
         trainer.train()
+        model.save_pretrained(output_dir)
+        tokenizer.save_pretrained(output_dir)
+        print("Model Fine-tuning Completed")
     except Exception as e:
         print(e)
         print("Model Fine-tuning Failed")
-    finally:
-        trainer.save_model(output_dir) # https://discuss.huggingface.co/t/what-is-the-purpose-of-save-pretrained/9167/2
-        print()
-        print("Model Fine-tuning Completed Successfully")
 
 
 def main():
@@ -218,9 +233,8 @@ def main():
 
         # TODO: update to new adapters version
         tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
-        model = BertAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
-        model.resize_token_embeddings(len(tokenizer))
-
+        # model = BertAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
+        model = AutoAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
 
         #PfeifferConfig,HoulsbyConfig
         if args.adapter_method == 'Pfeiffer':
@@ -236,18 +250,9 @@ def main():
         model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
                                                                     num_labels=3,
                                                                     id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
-        model.resize_token_embeddings(len(tokenizer))
 
-        # If fine-tuning head only, freeze the base model
-        if args.finetune == 'head':
-            for name,layer in model.base_model.named_parameters():
-                layer.requires_grad = False
-        elif args.finetune == 'full':
-            pass
-        else:
-            raise ValueError("finetune argument must be either 'head' or 'full'")
+    train(ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device, args)
 
-    train(ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device)
 
     # TODO
     # update to new adapters version
