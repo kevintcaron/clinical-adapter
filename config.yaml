@@ -5,9 +5,10 @@ Train:
   epochs: 1
   batch: 8
   adapter: False # True or False
-  adapter_method: #BnConfig # Pfeiffer,Houlsby need to change to new adapters : seq_bn ,seq_bn,double_seq_bn  - https://docs.adapterhub.ml/overview.html
-  hd: intel # intel or arm
+  adapter_method: SeqBnConfig # SeqBnConfig,DoubleSeqBnConfig,Houlsby need to change to new adapters : seq_bn ,seq_bn,double_seq_bn  - https://docs.adapterhub.ml/overview.html
+  reduction_factor: 64
+  hd: arm # intel or arm
 
 data:
-  i2b2: all # all or beth_and_partners
-  frac: 0.01
+  i2b2: beth_and_partners # all or beth_and_partners
+  frac: 0.1
