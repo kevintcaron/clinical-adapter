@@ -15,7 +15,7 @@ from utils import AssertionDatai2b2
 from transformers import AutoModelForSequenceClassification,BertAdapterModel
 from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction, AutoAdapterModel
 import argparse
-# from transformers.adapters import BnConfig,SeqBnConfig,DoubleSeqBnConfig (new version)
+from transformers.adapters import BnConfig,SeqBnConfig,DoubleSeqBnConfig # (new version)
 from transformers.adapters import PfeifferConfig,HoulsbyConfig
 
 # Set a random seed for reproducibility
@@ -96,7 +96,7 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
     print("We have added", num_added_toks, "tokens")
     print()
     # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
-    model.resize_token_embeddings(len(tokenizer))
+    # model.resize_token_embeddings(len(tokenizer))
 
     def tokenize_function(example):
         return tokenizer(example["new_line"],   padding="max_length", truncation=True)
@@ -107,16 +107,6 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
     tokenized_ds = tokenized_ds.remove_columns(["new_line"])
     tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
     tokenized_ds.set_format("torch")
-
-    # training_args = TrainingArguments(
-    #     output_dir=output_dir,
-    #     evaluation_strategy="epoch",
-    #     learning_rate= lr,
-    #     num_train_epochs= epochs,
-    #     logging_dir="./logs",
-    #     log_level="info",
-    #     logging_steps=10,
-    #     report_to="all")
 
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -129,7 +119,8 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
         logging_steps=100,
         save_total_limit=2,  # Only keep the last 2 checkpoints
         load_best_model_at_end=True,
-        metric_for_best_model="accuracy",  # Change to the metric you care about
+        metric_for_best_model="accuracy",
+        # report_to="wandb",
         push_to_hub=False,
     )
     
@@ -154,8 +145,7 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
         print(e)
         print("Model Fine-tuning Failed")
     finally:
-        model.save_pretrained(output_dir)
-        tokenizer.save_pretrained(output_dir)
+        trainer.save_model(output_dir) # https://discuss.huggingface.co/t/what-is-the-purpose-of-save-pretrained/9167/2
         print()
         print("Model Fine-tuning Completed Successfully")
 
@@ -229,7 +219,9 @@ def main():
         # TODO: update to new adapters version
         tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
         model = BertAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
-        
+        model.resize_token_embeddings(len(tokenizer))
+
+
         #PfeifferConfig,HoulsbyConfig
         if args.adapter_method == 'Pfeiffer':
             model.add_adapter(task_name,config=PfeifferConfig())
@@ -244,6 +236,7 @@ def main():
         model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
                                                                     num_labels=3,
                                                                     id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
+        model.resize_token_embeddings(len(tokenizer))
 
         # If fine-tuning head only, freeze the base model
         if args.finetune == 'head':
