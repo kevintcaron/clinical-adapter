@@ -14,6 +14,8 @@ from torch.optim import AdamW
 from utils import AssertionDatai2b2
 from transformers import AutoModelForSequenceClassification, AutoModel, AutoTokenizer # ,BertAdapterModel
 from adapters import AdapterSetup, AutoAdapterModel
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
 
 # from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction# , AutoAdapterModel
 import argparse
@@ -74,11 +76,27 @@ def _create_datasets(train,valid,test):
 
     return ds
 
+# def compute_metrics(eval_pred):
+#     metric = evaluate.load("accuracy")
+#     logits, labels = eval_pred
+#     predictions = np.argmax(logits, axis=-1)
+#     return metric.compute(predictions=predictions, references=labels)
+
 def compute_metrics(eval_pred):
-    metric = evaluate.load("accuracy")
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=-1)
-    return metric.compute(predictions=predictions, references=labels)
+
+    accuracy = accuracy_score(labels, predictions)
+    precision = precision_score(labels, predictions, average='weighted')
+    recall = recall_score(labels, predictions, average='weighted')
+    f1 = f1_score(labels, predictions, average='weighted')
+
+    return {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1,
+    }
 
 def _setup_parser():
     """Set up Python's ArgumentParser with data, model, trainer, and other arguments."""
