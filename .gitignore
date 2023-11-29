@@ -1,1 +1,18 @@
+<<<<<<< HEAD
 desktop.ini
+=======
+# Ignore log files
+# *.log
+
+# Ignore the cs7643-a5 environment
+clinbert_trainer/
+clinicalbert_trainer/
+cs7643-a5/
+*.bin
+*.pyc
+*.pt
+*.pth
+.idea/
+.ipynb_checkpoints/
+.models/
+>>>>>>> 0daab4e78edd7d37c82167257a7a074d7656863c
