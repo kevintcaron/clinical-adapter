@@ -1,5 +1,4 @@
 import os
-import spacy
 import yaml
 import pandas as pd
 import numpy as np
@@ -15,6 +14,7 @@ from utils import AssertionDatai2b2
 from transformers import AutoModelForSequenceClassification, AutoModel, AutoTokenizer # ,BertAdapterModel
 from adapters import AdapterSetup, AutoAdapterModel
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import time
 
 
 # from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction# , AutoAdapterModel
@@ -154,7 +154,7 @@ def train(ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:flo
         save_total_limit=2,  # Only keep the last 2 checkpoints
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
-        # report_to="wandb",
+        report_to="wandb" if args.wandb  else None,
         push_to_hub=False,
     )
     
@@ -268,6 +268,15 @@ def main():
         model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
                                                                     num_labels=3,
                                                                     id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
+        
+    #wandb setup
+    if args.wandb:
+        os.environ["WANDB_PROJECT"] = "clinical-bert"  
+        os.environ["WANDB_LOG_MODEL"] = "checkpoint"
+        os.environ["WANDB_API_KEY"] = args.wandb_api_key
+        is_adapter = "-adapter" if args.adapter else ""
+        timestamp = int(time.time())
+        os.environ["WANDB_RUN_NAME"] = f"{task_name}-{args.model}-{args.finetune}{is_adapter}-{timestamp}"
 
     train(ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device, args)
 
