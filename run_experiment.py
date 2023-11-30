@@ -1,5 +1,4 @@
 import os
-import spacy
 import yaml
 import pandas as pd
 import numpy as np
@@ -16,6 +15,7 @@ from transformers import AutoModelForSequenceClassification, AutoModel, AutoToke
 from adapters import AdapterSetup, AutoAdapterModel,AdapterTrainer
 from adapters import SeqBnConfig,DoubleSeqBnConfig
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import time
 
 
 # from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction# , AutoAdapterModel
@@ -27,7 +27,7 @@ import argparse
 seed = 42
 torch.manual_seed(seed)
 np.random.seed(seed)
-spacy.util.fix_random_seed(seed)
+# spacy.util.fix_random_seed(seed)
 
 def _split_data(all_line_data_filtered_df,frac):
     all_line_data_filtered_df_frac = all_line_data_filtered_df.sample(frac=frac).copy()
@@ -128,7 +128,7 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
         save_total_limit=2,  # Only keep the last 2 checkpoints
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
-        # report_to="wandb",
+        report_to="wandb" if args.wandb  else "none", # ee5f5f4d8ea5f77b94eddbf412a4426a08b9451c
         push_to_hub=False,
     )
     
@@ -170,6 +170,13 @@ def main():
     for key in config:
         for k, v in config[key].items():
             setattr(args, k, v)
+
+    # Print all arguments
+    print()
+    print("Arguments:")
+    for k, v in vars(args).items():
+        print(f"{k}: {v}")
+    print()
 
     preprocessed_data_path = "Data/preprocessed-data"
     train_data_path = "Data/concept_assertion_relation_training_data"
@@ -268,14 +275,14 @@ def main():
         model.set_active_adapters(task_name)
 
     else:
-        tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
+        #tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
         model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
                                                                     num_labels=3,
                                                                     id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
         # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
         model.resize_token_embeddings(len(tokenizer))
     
-            # If fine-tuning head only, freeze the base model
+        # If fine-tuning head only, freeze the base model
         if args.finetune == 'head':
             for name, layer in model.base_model.named_parameters():
                 layer.requires_grad = False
@@ -283,8 +290,17 @@ def main():
             pass
         else:
             raise ValueError("finetune argument must be either 'head' or 'full'")
+
+    # Set up wandb if True
+    if args.wandb:
+        # Set up wandb
+        os.environ["WANDB_PROJECT"] = "clinical-bert"  
+        os.environ["WANDB_LOG_MODEL"] = "checkpoint"
+        os.environ["WANDB_API_KEY"] = args.wandb_api_key
+        is_adapter = "-adapter" if args.adapter else ""
+        timestamp = int(time.time())
+        os.environ["WANDB_RUN_NAME"] = f"{task_name}-{args.model}-{args.finetune}{is_adapter}-{timestamp}"
     
-  
     train(tokenized_ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device, task_name, args)
 
 

@@ -1,0 +1,53 @@
+{
+    "os": "Windows-10-10.0.22621-SP0",
+    "python": "3.8.18",
+    "heartbeatAt": "2023-11-30T02:30:20.610017",
+    "startedAt": "2023-11-30T02:30:17.832838",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "run_experiment.py",
+    "codePathLocal": "run_experiment.py",
+    "codePath": "run_experiment.py",
+    "git": {
+        "remote": "https://github.com/kevintcaron/clinical-adapter.git",
+        "commit": "0e262c904d52588da701c097008ac134df1bdc11"
+    },
+    "email": "kcaron2@gmail.com",
+    "root": "C:/Users/kcaro/Documents/GitHub/clinical-adapter",
+    "host": "Kevin",
+    "username": "kcaro",
+    "executable": "C:\\Users\\kcaro\\miniconda3\\envs\\clinical-adapter\\python.exe",
+    "cpu_count": 8,
+    "cpu_count_logical": 16,
+    "cpu_freq": {
+        "current": 998.0,
+        "min": 0.0,
+        "max": 2496.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 998.0,
+            "min": 0.0,
+            "max": 2496.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 933.3955039978027,
+            "used": 372.87107849121094
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+            "memory_total": 4294967296
+        }
+    ],
+    "memory": {
+        "total": 31.726390838623047
+    }
+}
