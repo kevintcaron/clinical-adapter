@@ -19,6 +19,7 @@ dependencies:
   - datasets
   - accelerate
   - https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.4.0/en_ner_bc5cdr_md-0.4.0.tar.gz
-  - adapter-transformers
+#  - adapter-transformers
+  - adapters
   - wandb
 

@@ -1,0 +1,60 @@
+2023-11-29 21:14:43,023 INFO    StreamThr :31628 [internal.py:wandb_internal():86] W&B internal server running at pid: 31628, started at: 2023-11-29 21:14:43.023830
+2023-11-29 21:14:43,029 DEBUG   HandlerThread:31628 [handler.py:handle_request():146] handle_request: status
+2023-11-29 21:14:43,029 INFO    WriterThread:31628 [datastore.py:open_for_write():85] open: C:\Users\kcaro\Documents\GitHub\clinical-adapter\wandb\offline-run-20231129_211442-d4jy0tz5\run-d4jy0tz5.wandb
+2023-11-29 21:14:43,156 DEBUG   HandlerThread:31628 [handler.py:handle_request():146] handle_request: run_start
+2023-11-29 21:14:43,236 DEBUG   HandlerThread:31628 [system_info.py:__init__():32] System info init
+2023-11-29 21:14:43,236 DEBUG   HandlerThread:31628 [system_info.py:__init__():47] System info init done
+2023-11-29 21:14:43,236 INFO    HandlerThread:31628 [system_monitor.py:start():194] Starting system monitor
+2023-11-29 21:14:43,236 INFO    SystemMonitor:31628 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2023-11-29 21:14:43,236 INFO    HandlerThread:31628 [system_monitor.py:probe():214] Collecting system info
+2023-11-29 21:14:43,251 INFO    SystemMonitor:31628 [interfaces.py:start():190] Started cpu monitoring
+2023-11-29 21:14:43,251 INFO    SystemMonitor:31628 [interfaces.py:start():190] Started disk monitoring
+2023-11-29 21:14:43,268 INFO    SystemMonitor:31628 [interfaces.py:start():190] Started gpu monitoring
+2023-11-29 21:14:43,268 DEBUG   HandlerThread:31628 [system_info.py:probe():196] Probing system
+2023-11-29 21:14:43,269 INFO    SystemMonitor:31628 [interfaces.py:start():190] Started memory monitoring
+2023-11-29 21:14:43,298 INFO    SystemMonitor:31628 [interfaces.py:start():190] Started network monitoring
+2023-11-29 21:14:43,298 DEBUG   HandlerThread:31628 [system_info.py:_probe_git():181] Probing git
+2023-11-29 21:14:43,470 DEBUG   HandlerThread:31628 [system_info.py:_probe_git():189] Probing git done
+2023-11-29 21:14:43,471 DEBUG   HandlerThread:31628 [system_info.py:probe():244] Probing system done
+2023-11-29 21:14:43,471 DEBUG   HandlerThread:31628 [system_monitor.py:probe():223] {'os': 'Windows-10-10.0.22621-SP0', 'python': '3.8.18', 'heartbeatAt': '2023-11-30T02:14:43.269727', 'startedAt': '2023-11-30T02:14:42.982413', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': 'run_experiment.py', 'codePathLocal': 'run_experiment.py', 'codePath': 'run_experiment.py', 'git': {'remote': 'https://github.com/kevintcaron/clinical-adapter.git', 'commit': '0e262c904d52588da701c097008ac134df1bdc11'}, 'email': 'kcaron2@gmail.com', 'root': 'C:/Users/kcaro/Documents/GitHub/clinical-adapter', 'host': 'Kevin', 'username': 'kcaro', 'executable': 'C:\\Users\\kcaro\\miniconda3\\envs\\clinical-adapter\\python.exe', 'cpu_count': 8, 'cpu_count_logical': 16, 'cpu_freq': {'current': 998.0, 'min': 0.0, 'max': 2496.0}, 'cpu_freq_per_core': [{'current': 998.0, 'min': 0.0, 'max': 2496.0}], 'disk': {'/': {'total': 933.3955039978027, 'used': 372.8604278564453}}, 'gpu': 'NVIDIA GeForce RTX 3050 Ti Laptop GPU', 'gpu_count': 1, 'gpu_devices': [{'name': 'NVIDIA GeForce RTX 3050 Ti Laptop GPU', 'memory_total': 4294967296}], 'memory': {'total': 31.726390838623047}}
+2023-11-29 21:14:43,471 INFO    HandlerThread:31628 [system_monitor.py:probe():224] Finished collecting system info
+2023-11-29 21:14:43,471 INFO    HandlerThread:31628 [system_monitor.py:probe():227] Publishing system info
+2023-11-29 21:14:43,471 DEBUG   HandlerThread:31628 [system_info.py:_save_pip():52] Saving list of pip packages installed into the current environment
+2023-11-29 21:14:43,471 DEBUG   HandlerThread:31628 [system_info.py:_save_pip():68] Saving pip packages done
+2023-11-29 21:14:43,471 DEBUG   HandlerThread:31628 [system_info.py:_save_conda():75] Saving list of conda packages installed into the current environment
+2023-11-29 21:14:43,488 ERROR   HandlerThread:31628 [system_info.py:_save_conda():86] Error saving conda packages: [WinError 2] The system cannot find the file specified
+Traceback (most recent call last):
+  File "C:\Users\kcaro\miniconda3\envs\clinical-adapter\lib\site-packages\wandb\sdk\internal\system\system_info.py", line 82, in _save_conda
+    subprocess.call(
+  File "C:\Users\kcaro\miniconda3\envs\clinical-adapter\lib\subprocess.py", line 340, in call
+    with Popen(*popenargs, **kwargs) as p:
+  File "C:\Users\kcaro\miniconda3\envs\clinical-adapter\lib\subprocess.py", line 858, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "C:\Users\kcaro\miniconda3\envs\clinical-adapter\lib\subprocess.py", line 1327, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+FileNotFoundError: [WinError 2] The system cannot find the file specified
+2023-11-29 21:14:43,488 DEBUG   HandlerThread:31628 [system_info.py:_save_conda():87] Saving conda packages done
+2023-11-29 21:14:43,503 INFO    HandlerThread:31628 [system_monitor.py:probe():229] Finished publishing system info
+2023-11-29 21:14:45,113 DEBUG   SenderThread:31628 [sender.py:send():380] send: exit
+2023-11-29 21:14:45,113 INFO    SenderThread:31628 [sender.py:send_exit():585] handling exit code: 0
+2023-11-29 21:14:45,113 INFO    SenderThread:31628 [sender.py:send_exit():587] handling runtime: 1
+2023-11-29 21:14:45,128 INFO    SenderThread:31628 [sender.py:_save_file():1380] saving file wandb-summary.json with policy end
+2023-11-29 21:14:45,128 INFO    SenderThread:31628 [sender.py:send_exit():593] send defer
+2023-11-29 21:14:45,128 DEBUG   HandlerThread:31628 [handler.py:handle_request():146] handle_request: defer
+2023-11-29 21:14:45,129 INFO    HandlerThread:31628 [handler.py:handle_request_defer():172] handle defer: 0
+2023-11-29 21:14:45,130 DEBUG   SenderThread:31628 [sender.py:send_request():407] send_request: defer
+2023-11-29 21:14:45,130 INFO    SenderThread:31628 [sender.py:send_request_defer():609] handle sender defer: 0
+2023-11-29 21:14:45,130 INFO    SenderThread:31628 [sender.py:transition_state():613] send defer: 1
+2023-11-29 21:14:45,130 DEBUG   HandlerThread:31628 [handler.py:handle_request():146] handle_request: defer
+2023-11-29 21:14:45,130 INFO    HandlerThread:31628 [handler.py:handle_request_defer():172] handle defer: 1
+2023-11-29 21:14:45,131 DEBUG   SenderThread:31628 [sender.py:send_request():407] send_request: defer
+2023-11-29 21:14:45,131 INFO    SenderThread:31628 [sender.py:send_request_defer():609] handle sender defer: 1
+2023-11-29 21:14:45,131 INFO    SenderThread:31628 [sender.py:transition_state():613] send defer: 2
+2023-11-29 21:14:45,131 DEBUG   HandlerThread:31628 [handler.py:handle_request():146] handle_request: defer
+2023-11-29 21:14:45,131 INFO    HandlerThread:31628 [handler.py:handle_request_defer():172] handle defer: 2
+2023-11-29 21:14:45,131 INFO    HandlerThread:31628 [system_monitor.py:finish():203] Stopping system monitor
+2023-11-29 21:14:45,131 DEBUG   SystemMonitor:31628 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2023-11-29 21:14:45,145 INFO    HandlerThread:31628 [interfaces.py:finish():202] Joined cpu monitor
+2023-11-29 21:14:45,145 DEBUG   SystemMonitor:31628 [system_monitor.py:_start():179] Finished system metrics aggregation loop
+2023-11-29 21:14:45,145 INFO    HandlerThread:31628 [interfaces.py:finish():202] Joined disk monitor
+2023-11-29 21:14:45,145 DEBUG   SystemMonitor:31628 [system_monitor.py:_start():183] Publishing last batch of metrics
