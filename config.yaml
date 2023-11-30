@@ -1,4 +1,5 @@
 Train:
+  task: ner #ner or ast
   model: clinicalbert # bert or clinicalbert
   finetune: head # head or full
   lr: 0.00001 # 1e-5
@@ -7,7 +8,7 @@ Train:
   adapter: False # True or False
   adapter_method: SeqBnConfig # SeqBnConfig,DoubleSeqBnConfig,Houlsby need to change to new adapters : seq_bn ,seq_bn,double_seq_bn  - https://docs.adapterhub.ml/overview.html
   reduction_factor: 64
-  hd: arm # intel or arm
+  hd: intel # intel or arm
 
 data:
   i2b2: beth_and_partners # all or beth_and_partners

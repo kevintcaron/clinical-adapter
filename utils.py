@@ -1,7 +1,7 @@
 import os
 import re
 import pandas as pd
-
+import ast
 class AssertionDatai2b2():
     def __init__(self,preprocessed_data_path,train_data_path,reference_test_data_path,test_data_path) -> None:
         self.train_data_path = train_data_path
@@ -316,3 +316,179 @@ class AssertionDatai2b2():
         all_line_data_filtered_df = pd.read_csv(path)
         return all_line_data_filtered_df
 
+class ConceptDatai2b2():
+    def __init__(self,preprocessed_data_path,train_data_path,reference_test_data_path,test_data_path) -> None:
+        self.train_data_path = train_data_path
+        self.reference_test_data_path = reference_test_data_path # test labels
+        self.test_data_path = test_data_path
+        self.preprocessed_data_path = preprocessed_data_path
+
+    def load_clinical_notes(self):
+        # Get paths for data and labels
+        print()
+        print("Loading data for NER...")
+        cwd  = os.getcwd()
+        labels_path_beth = os.path.join(cwd,f"{self.train_data_path}","beth","ast")
+        data_path_beth = os.path.join(cwd,f"{self.train_data_path}","beth","txt")
+        labels_path_partners = os.path.join(cwd,f"{self.train_data_path}","partners","ast")
+        data_path_partners = os.path.join(cwd,f"{self.train_data_path}","partners","txt")
+        labels_path_test = os.path.join(cwd,f"{self.reference_test_data_path}","ast")
+        data_path_test = os.path.join(cwd,f"{self.test_data_path}")
+
+        return labels_path_beth,data_path_beth,labels_path_partners,data_path_partners,labels_path_test,data_path_test
+    
+    def computeConceptDict(self,conFilePath):
+        cf = open(conFilePath,"r")
+        cf_Lines = cf.readlines()
+        line_dict = dict()
+
+        for cf_line in cf_Lines:
+            # print cf_line
+            #c="a workup" 27:2 27:3||t="test"
+            concept= cf_line.split("||")
+
+            iob_wordIdx = concept[0].split()
+            # print concept[0]
+            iob_class = concept[1].split("=")
+            iob_class = iob_class[1].replace("\"","")
+            iob_class = iob_class.replace("\n","")
+
+            # print iob_wordIdx[len(iob_wordIdx)-2],iob_wordIdx[len(iob_wordIdx)-1]
+            start_iobLineNo = iob_wordIdx[len(iob_wordIdx)-2].split(":")
+            end_iobLineNo = iob_wordIdx[len(iob_wordIdx)-1].split(":")
+            start_idx = start_iobLineNo[1]
+            end_idx = end_iobLineNo[1]
+            iobLineNo=start_iobLineNo[0]
+
+            if iobLineNo in line_dict.keys():
+                    line_dict[iobLineNo].append(start_idx+"-"+end_idx+"-"+iob_class)
+            else:
+                    line_dict.update({iobLineNo:[start_idx+"-"+end_idx+"-"+iob_class]})
+        return line_dict
+
+    def prepareIOB_wordList(self,lineNumber,IOBwordList,conceptDict):
+
+        iobTagList= []
+        if str(lineNumber) in conceptDict.keys():
+            # print conceptDict[str(lineNumber)]
+
+            # split the tag and get the index of word and tag
+            for concept in conceptDict[str(lineNumber)]:
+                concept = str(concept).split("-")
+                # print "start_idx, end_idx",concept[0],concept[1]
+                # if (start_idx - end_idx) is zero then only B- prefix is applicable
+                getrange = list(range(int(concept[0]),int(concept[1])))
+                getrange.append(int(concept[1]))
+                # For all the idx not in getrange assign an O tag
+                # print getrange
+                if(len(getrange) > 1):
+
+                        for idx in range(0,len(getrange)):
+                            # print getrange[idx]
+                            iobTagList.append(int(getrange[idx]))
+                            if(idx == 0):
+                                    IOBwordList[getrange[idx]] = "B-"+concept[2]
+                            else:
+                                    IOBwordList[getrange[idx]] = "I-"+concept[2]
+                else:
+                        idx = getrange[0]
+                        iobTagList.append(int(getrange[0]))
+                        # print idx
+                        IOBwordList[idx] = "B-"+concept[2]
+                # Else for all the indices between start and end apply the I- prefix
+
+                # For all the other words assign O tag
+            for i in range(0,len(IOBwordList)):
+                if i not in iobTagList:
+                    IOBwordList[i] = "O"
+            # print "IOB- WordList ",IOBwordList
+        else:
+            # print ""
+            for i in range(0,len(IOBwordList)):
+                if i not in iobTagList:
+                    IOBwordList[i] = "O"
+        return IOBwordList
+    
+    def handle_imbalanced_dataset(df, drop=0):
+        """
+        This function expects a dataframe with ner_tags as one of it's columns, which is pre-processed i2b2 concept data.
+        It returns a dataframe, and also prints some statistics to check in the given dataset.
+        if drop=1, then 80% of sentences with all others values will be dropped from the final dataframe randomly.
+        """
+        count_zero = 0
+        count_non_zero = 0
+        for index, row in df.iterrows():
+            ner_tags = ast.literal_eval(row['ner_tags'])
+            # Check if all elements in ner_tags are 0
+            if all(tag == 0 for tag in ner_tags):
+                count_zero += 1
+            else:
+                count_non_zero += 1
+        # Calculate the ratio
+        total_rows = len(df)
+        ratio_zero = count_zero / total_rows
+        ratio_non_zero = count_non_zero / total_rows
+        print(f"Rows with all 0s in ner_tags: {count_zero}")
+        print(f"Rows with non-zero values in ner_tags: {count_non_zero}")
+        print(f"Ratio of rows with all 0s: {ratio_zero:.2%}")
+        print(f"Ratio of rows with non-zero values: {ratio_non_zero:.2%}")
+        
+        if drop==1:
+            df_to_remove = df[df['ner_tags'].apply(lambda tags: all(tag == 0 for tag in ast.literal_eval(tags)))].sample(frac=0.8)
+            df = df.drop(df_to_remove.index)
+
+        return df
+
+    def create_concept_i2b2_data(self):
+        # Define the mapping dictionary
+        mapping_dict = {
+            'O': 0,
+            'B-test': 1,
+            'I-test': 2,
+            'B-problem': 3,
+            'I-problem': 4,
+            'B-treatment': 5,
+            'I-treatment': 6
+        }
+
+        # # Example list of values
+        # values_list = ['O', 'B-test', 'I-test', 'B-problem', 'I-problem', 'B-treatment', 'I-treatment']
+
+        # # Replace values in the list with their corresponding IDs
+        # mapped_ids = [mapping_dict[value] for value in values_list]
+
+        # print("Mapped IDs:", mapped_ids)
+        con_files_root = os.listdir("../Data/concept_assertion_relation_training_data/partners/concept")
+        txt_files_root = os.listdir("../Data/concept_assertion_relation_training_data/partners/txt")
+        final_data =[]
+        for file in txt_files_root:
+            print(file)
+            con_file_name = file.split('.txt')[0]+'.con'
+            if con_file_name in con_files_root:
+                f = open("../Data/concept_assertion_relation_training_data/partners/txt/"+file,'r')
+                lines = f.readlines()
+                filename_con = "../Data/concept_assertion_relation_training_data/partners/concept/" + con_file_name
+                conceptDict = self.computeConceptDict(filename_con)
+                # print(conceptDict, "\n\n****************************************************")
+                # break
+                for line in range(0 ,len(lines)):
+                    words =  str(lines[line]).split()
+                    orginial_wordsList =  str(lines[line]).split()
+                    IOBwordList= words
+                    lineNumber= line+1 # Line number starts with 1
+                    IOBwordList=self.prepareIOB_wordList(lineNumber,IOBwordList,conceptDict)
+                    mapped_ids = [mapping_dict[value] for value in IOBwordList]
+                    # print(type(orginial_wordsList))
+                    final_data.append([orginial_wordsList, IOBwordList, mapped_ids])
+
+
+        df = pd.DataFrame(final_data, columns=['tokens','tags','ner_tags'])
+        # df.to_csv("../Data/concept_assertion_relation_training_data/partners/concept_data_4.csv",index=False)
+        cwd  = os.getcwd()
+        df.to_csv(os.path.join(cwd, f"{self.preprocessed_data_path}", "concept_data_final.csv", index=False))
+
+    def load_concept_i2b2_data(self):
+        cwd  = os.getcwd()
+        path = os.path.join(cwd, f"{self.preprocessed_data_path}", "concept_data_final.csv")
+        data = pd.read_csv(path)
+        return data

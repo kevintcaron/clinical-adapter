@@ -11,7 +11,7 @@ from datasets import Dataset, DatasetDict
 import torch 
 from transformers import TrainingArguments, Trainer
 from torch.optim import AdamW
-from utils import AssertionDatai2b2
+from utils import AssertionDatai2b2, ConceptDatai2b2
 from transformers import AutoModelForSequenceClassification, AutoModel, AutoTokenizer # ,BertAdapterModel
 from adapters import AdapterSetup, AutoAdapterModel,AdapterTrainer
 from adapters import SeqBnConfig,DoubleSeqBnConfig
@@ -175,14 +175,22 @@ def main():
     train_data_path = "Data/concept_assertion_relation_training_data"
     reference_test_data_path = "Data/reference_standard_for_test_data"
     test_data_path = "Data/test_data"
-    task_name = 'ast'
+    task_name = args.task
 
-    ast_i2b2 = AssertionDatai2b2(preprocessed_data_path=preprocessed_data_path,
+    if task_name == 'ast':
+        ast_i2b2 = AssertionDatai2b2(preprocessed_data_path=preprocessed_data_path,
                                  train_data_path=train_data_path,
                                  reference_test_data_path=reference_test_data_path,
                                  test_data_path=test_data_path)
+        beth_and_partners_ast, all_ast = ast_i2b2.load_assertion_i2b2_data()
+
+    elif task_name == 'ner':
+        ner_i2b2 = ConceptDatai2b2(preprocessed_data_path=preprocessed_data_path,
+                                 train_data_path=train_data_path,
+                                 reference_test_data_path=reference_test_data_path,
+                                 test_data_path=test_data_path)
+        all_data = ner_i2b2.load_concept_i2b2_data()    
     
-    beth_and_partners_ast, all_ast = ast_i2b2.load_assertion_i2b2_data()
 
     if args.i2b2 == 'all':
         train_data, valid_data, test_data = _split_data(all_ast,args.frac)
