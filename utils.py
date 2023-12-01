@@ -491,4 +491,4 @@ class ConceptDatai2b2():
         cwd  = os.getcwd()
         path = os.path.join(cwd, f"{self.preprocessed_data_path}", "concept_data_final.csv")
         data = pd.read_csv(path)
-        return data
+        return data, data

@@ -11,12 +11,12 @@ import torch
 from transformers import TrainingArguments, Trainer
 from torch.optim import AdamW
 from utils import AssertionDatai2b2, ConceptDatai2b2
-from transformers import AutoModelForSequenceClassification, AutoModel, AutoTokenizer # ,BertAdapterModel
+from transformers import AutoModelForSequenceClassification, AutoModel, AutoTokenizer, AutoModelForTokenClassification# ,BertAdapterModel
 from adapters import AdapterSetup, AutoAdapterModel,AdapterTrainer
 from adapters import SeqBnConfig,DoubleSeqBnConfig
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import time
-
+import ast
 
 # from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction# , AutoAdapterModel
 import argparse
@@ -48,32 +48,50 @@ def _split_data(all_line_data_filtered_df,frac):
 
     return (X_train,y_train),(X_valid,y_valid),(X_test ,y_test)
 
-def _create_datasets(train,valid,test):
+def _create_datasets(train,valid,test, task='ast'):
 
     (X_train,y_train) = train
     (X_valid,y_valid)= valid
     (X_test ,y_test)= test
     print()
-    print("Encoding Labels .....")
-    encoder = LabelEncoder()
-    encoder.fit(y_train)
-    y_train_encode = np.asarray(encoder.transform(y_train))
-    y_valid_encode = np.asarray(encoder.transform(y_valid))
-    y_test_encode = np.asarray(encoder.transform(y_test))
+    if task == 'ast':
+        print("Encoding Labels .....")
+        encoder = LabelEncoder()
+        encoder.fit(y_train)
+        y_train_encode = np.asarray(encoder.transform(y_train))
+        y_valid_encode = np.asarray(encoder.transform(y_valid))
+        y_test_encode = np.asarray(encoder.transform(y_test))
 
-    train_df = pd.DataFrame(X_train)
-    valid_df = pd.DataFrame(X_valid)
-    test_df = pd.DataFrame(X_test)
+        train_df = pd.DataFrame(X_train)
+        valid_df = pd.DataFrame(X_valid)
+        test_df = pd.DataFrame(X_test)
 
-    train_df['label'] = y_train_encode.tolist()
-    valid_df['label'] = y_valid_encode.tolist()
-    test_df['label'] = y_test_encode.tolist()
+        train_df['label'] = y_train_encode.tolist()
+        valid_df['label'] = y_valid_encode.tolist()
+        test_df['label'] = y_test_encode.tolist()
+        
+    elif task == 'ner':
+        train_df = pd.DataFrame()
+        valid_df = pd.DataFrame()
+        test_df = pd.DataFrame()
+
+        train_df['tokens'] = [ast.literal_eval(t) for t in X_train]
+        valid_df['tokens'] = [ast.literal_eval(t) for t in X_valid]
+        test_df['tokens'] = [ast.literal_eval(t) for t in X_test]
+
+        train_df['ner_tags'] = [ast.literal_eval(t) for t in y_train]
+        valid_df['ner_tags'] = [ast.literal_eval(t) for t in y_valid]
+        test_df['ner_tags'] = [ast.literal_eval(t) for t in y_test]
+
+    else:
+        raise ValueError("task argument in _create_datasets function should be 'ast' or 'ner'. By Default it is set to 'ast'")
 
     ds = DatasetDict ({
-    'train': Dataset.from_pandas(train_df),
-    'validation': Dataset.from_pandas(valid_df),
-    'test': Dataset.from_pandas(test_df)
-    })
+        'train': Dataset.from_pandas(train_df),
+        'validation': Dataset.from_pandas(valid_df),
+        'test': Dataset.from_pandas(test_df)
+        })
+    
 
     return ds
 
@@ -159,7 +177,28 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
         print(e)
         print("Model Fine-tuning Failed")
 
+def tokenize_and_align_labels(examples,tokenizer):
+    examples_tokens = examples["tokens"]
+    tokenized_inputs = tokenizer(examples_tokens, truncation=True, is_split_into_words=True)
 
+    labels = []
+    examples_ner= examples[f"ner_tags"]
+    for i, label in enumerate(examples_ner):
+        word_ids = tokenized_inputs.word_ids(batch_index=i)  # Map tokens to their respective word.
+        previous_word_idx = None
+        label_ids = []
+        for word_idx in word_ids:  # Set the special tokens to -100.
+            if word_idx is None:
+                label_ids.append(-100)
+            elif word_idx != previous_word_idx:  # Only label the first token of a given word.
+                label_ids.append(label[word_idx])
+            else:
+                label_ids.append(-100)
+            previous_word_idx = word_idx
+        labels.append(label_ids)
+
+    tokenized_inputs["labels"] = labels
+    return tokenized_inputs
 def main():
 
     parser = _setup_parser()
@@ -178,6 +217,8 @@ def main():
         print(f"{k}: {v}")
     print()
 
+    
+
     preprocessed_data_path = "Data/preprocessed-data"
     train_data_path = "Data/concept_assertion_relation_training_data"
     reference_test_data_path = "Data/reference_standard_for_test_data"
@@ -189,20 +230,26 @@ def main():
                                  train_data_path=train_data_path,
                                  reference_test_data_path=reference_test_data_path,
                                  test_data_path=test_data_path)
-        beth_and_partners_ast, all_ast = ast_i2b2.load_assertion_i2b2_data()
+        beth_and_partners_data, all_data = ast_i2b2.load_assertion_i2b2_data()
+        id2label = {0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'}
 
     elif task_name == 'ner':
         ner_i2b2 = ConceptDatai2b2(preprocessed_data_path=preprocessed_data_path,
                                  train_data_path=train_data_path,
                                  reference_test_data_path=reference_test_data_path,
                                  test_data_path=test_data_path)
-        all_data = ner_i2b2.load_concept_i2b2_data()    
-    
+        beth_and_partners_data, all_data = ner_i2b2.load_concept_i2b2_data()    
+        id2label = {0: "O",1: "B-test",2: "I-test",3: "B-problem",4: "I-problem",5: "B-treatment",6: "I-treatment"}
+        label2id = {"O": 0,"B-test": 1,"I-test": 2,"B-problem": 3,"I-problem": 4,"B-treatment": 5,"I-treatment": 6}
 
+        #ATTENTION : for NER tasks, the test data is not included, so beth_and_partners and all_data are EXACTLY the same
+    else:
+        raise ValueError("task argument must be either 'ast' or 'ner'")
+    
     if args.i2b2 == 'all':
-        train_data, valid_data, test_data = _split_data(all_ast,args.frac)
+        train_data, valid_data, test_data = _split_data(all_data,args.frac)
     elif args.i2b2 == 'beth_and_partners':
-        train_data, valid_data, test_data = _split_data(beth_and_partners_ast,args.frac)
+        train_data, valid_data, test_data = _split_data(beth_and_partners_data,args.frac)
     else:
         raise ValueError("i2b2 argument must be either 'all' or 'beth_and_partners'")
     
@@ -228,36 +275,37 @@ def main():
 
     # Assign model and output directory
     if args.model == 'clinicalbert':
-        pretrained_model_name_or_path = "emilyalsentzer/Bio_Discharge_Summary_BERT"
-        output_dir= "clinicalbert_trainer"
+        pretrained_model_name_or_path = "emilyalsentzer/Bio_Discharge_Summary_BERT"   #"emilyalsentzer/Bio_ClinicalBERT"  TBD
+        output_dir= "clinicalbert_trainer/" + str(task_name)
         os.makedirs(output_dir, exist_ok=True)
     elif args.model == "bert":
         pretrained_model_name_or_path = "bert-base-uncased"
-        output_dir= "bert_trainer"
+        output_dir= "bert_trainer/" + str(task_name)
         os.makedirs(output_dir, exist_ok=True)
     else:
         raise ValueError("model argument must be either 'clinicalbert' or 'bert'")
 
     tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
 
-    special_tokens_dict = {"additional_special_tokens": ["[entity]"]}
-    num_added_toks = tokenizer.add_special_tokens(special_tokens_dict,False)
-    print()
-    print("We have added", num_added_toks, "tokens")
-    print()
-
-
-    def tokenize_function(example):
+    def tokenize_function_ast(example):
         return tokenizer(example["new_line"],   padding="max_length", truncation=True)
     
     # Takes ds dataset and tokenizes
-    tokenized_ds = ds.map(tokenize_function, batched=True)
-    tokenized_ds = tokenized_ds.rename_column("label", "labels")
-    tokenized_ds = tokenized_ds.remove_columns(["new_line"])
-    tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
+    if task_name == 'ast':
+        special_tokens_dict = {"additional_special_tokens": ["[entity]"]}
+        num_added_toks = tokenizer.add_special_tokens(special_tokens_dict,False)
+        print()
+        print("We have added", num_added_toks, "tokens")
+        print()
+        tokenized_ds = ds.map(tokenize_function_ast, batched=True)
+        tokenized_ds = tokenized_ds.rename_column("label", "labels")
+        tokenized_ds = tokenized_ds.remove_columns(["new_line"])
+        tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
+        
+    if task_name == 'ner':
+        tokenized_ds = ds.map(tokenize_and_align_labels, batched=True)
+
     tokenized_ds.set_format("torch")
-
-
     # Assign use of adapter or not
     if args.adapter:
         # model = BertAdapterModel.from_pretrained(pretrained_model_name_or_path = pretrained_model_name_or_path)
@@ -271,14 +319,25 @@ def main():
         else:
             model.add_adapter(task_name,config=DoubleSeqBnConfig(reduction_factor=args.reduction_factor))
         model.train_adapter(task_name)
-        model.add_classification_head(task_name, num_labels=3,id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
+        if task_name == 'ast':
+            model.add_classification_head(task_name, num_labels=len(id2label),id2label=id2label)
+        elif task_name == 'ner':
+            model.add_tagging_head("ner_head", num_labels=len(id2label), id2label=id2label)
         model.set_active_adapters(task_name)
 
     else:
         #tokenizer  = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, model_max_length=150)
-        model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
-                                                                    num_labels=3,
-                                                                    id2label={0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'})
+        if task_name == 'ast':
+            model = AutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path, 
+                                                                        num_labels=len(id2label),
+                                                                        id2label=id2label)
+        elif task_name == 'ner':
+            model = AutoModelForTokenClassification.from_pretrained(pretrained_model_name_or_path,
+                                                                    num_labels=len(id2label), 
+                                                                    id2label=id2label, 
+                                                                    label2id=label2id)     
+        else:
+            raise ValueError("task argument must be either 'ast' or 'ner'")
         # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
         model.resize_token_embeddings(len(tokenizer))
     
