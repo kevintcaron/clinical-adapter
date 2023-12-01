@@ -12,6 +12,7 @@ cs7643-a5/
 *.pyc
 *.pt
 *.pth
+*.yaml
 .idea/
 .ipynb_checkpoints/
 .models/
