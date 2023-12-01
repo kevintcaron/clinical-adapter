@@ -17,6 +17,8 @@ from adapters import SeqBnConfig,DoubleSeqBnConfig
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import time
 import ast
+import evaluate
+
 
 # from transformers import AutoTokenizer, AutoModel, AdapterTrainer, EvalPrediction# , AutoAdapterModel
 import argparse
@@ -29,17 +31,25 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 # spacy.util.fix_random_seed(seed)
 
-def _split_data(all_line_data_filtered_df,frac):
+def _split_data(all_line_data_filtered_df,frac, task_name='ast'):
     all_line_data_filtered_df_frac = all_line_data_filtered_df.sample(frac=frac).copy()
 
     print("fraction of examples to used for training: {:.2f}".format(frac))
     print("number of examples after sampling: {:,}\n".format(all_line_data_filtered_df_frac.shape[0]))
-
-    X = all_line_data_filtered_df_frac['new_line']
-    y = all_line_data_filtered_df_frac['label']
-
-    X_train, X_test_valid, y_train, y_test_valid = train_test_split(X, y, test_size=0.2, stratify=y, random_state=seed)
-    X_test, X_valid, y_test, y_valid = train_test_split(X_test_valid, y_test_valid, test_size=0.5, random_state=seed, stratify=y_test_valid)
+    # print(all_line_data_filtered_df)
+    if task_name == 'ast':
+      X = all_line_data_filtered_df_frac['new_line']
+      y = all_line_data_filtered_df_frac['label']
+      X_train, X_test_valid, y_train, y_test_valid = train_test_split(X, y, test_size=0.2, stratify=y, random_state=seed)
+      X_test, X_valid, y_test, y_valid = train_test_split(X_test_valid, y_test_valid, test_size=0.5, random_state=seed, stratify=y_test_valid)
+    elif task_name == 'ner':
+      X = all_line_data_filtered_df_frac['tokens']
+      y = all_line_data_filtered_df_frac['ner_tags']
+      # print(X,y)
+      # print(len(X),len(y))
+      X_train, X_test_valid, y_train, y_test_valid = train_test_split(X, y, test_size=0.2, random_state=seed)
+      X_test, X_valid, y_test, y_valid = train_test_split(X_test_valid, y_test_valid, test_size=0.5, random_state=seed)
+    
 
     print(f"X shape {X.shape} y shape : {y.shape}")
     print(f"X_train shape {X_train.shape} y_train shape : {y_train.shape}")
@@ -101,21 +111,43 @@ def _create_datasets(train,valid,test, task='ast'):
 #     predictions = np.argmax(logits, axis=-1)
 #     return metric.compute(predictions=predictions, references=labels)
 
-def compute_metrics(eval_pred):
+def compute_metrics(eval_pred, task_name):
+    # print(eval_pred)
     logits, labels = eval_pred
-    predictions = np.argmax(logits, axis=-1)
+    if task_name == 'ast':
+      predictions = np.argmax(logits, axis=-1)
+      accuracy = accuracy_score(labels, predictions)
+      precision = precision_score(labels, predictions, average='weighted')
+      recall = recall_score(labels, predictions, average='weighted')
+      f1 = f1_score(labels, predictions, average='weighted')
 
-    accuracy = accuracy_score(labels, predictions)
-    precision = precision_score(labels, predictions, average='weighted')
-    recall = recall_score(labels, predictions, average='weighted')
-    f1 = f1_score(labels, predictions, average='weighted')
+      return {
+          'accuracy': accuracy,
+          'precision': precision,
+          'recall': recall,
+          'f1': f1,
+      }
+    elif task_name == 'ner':
+      seqeval = evaluate.load("seqeval")
+      predictions = np.argmax(logits, axis=2)
+      label_list  = ["O", "B-test", "I-test", "B-problem", "I-problem", "B-treatment", "I-treatment"]
+      true_predictions = [
+          [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
+          for prediction, label in zip(predictions, labels)
+      ]
+      true_labels = [
+          [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
+          for prediction, label in zip(predictions, labels)
+      ]
 
-    return {
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1': f1,
-    }
+      results = seqeval.compute(predictions=true_predictions, references=true_labels)
+      return {
+          "accuracy": results["overall_accuracy"],
+          "precision": results["overall_precision"],
+          "recall": results["overall_recall"],
+          "f1": results["overall_f1"]
+      }
+    
 
 def _setup_parser():
     """Set up Python's ArgumentParser with data, model, trainer, and other arguments."""
@@ -125,7 +157,7 @@ def _setup_parser():
 
     return parser
 
-def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:float,epochs:int, 
+def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:bool,lr:float,epochs:int,weight_decay:float,batch:int,logging_steps:int,
                             output_dir:str, device:str, task_name:str,args):
     
     model = model.to(device)
@@ -138,17 +170,19 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
         output_dir=output_dir,
         learning_rate= lr,
         num_train_epochs= epochs,
-        per_device_train_batch_size=8,
+        weight_decay=weight_decay,
+        per_device_train_batch_size=batch,
         evaluation_strategy="epoch",
-        save_strategy="epoch",  # Save model checkpoints at the end of each epoch
-        logging_dir="./logs",
-        logging_steps=100,
+        save_strategy="epoch",  # Save model checkpoints at the end of each epoch 
+        logging_dir="./logs", 
+        logging_steps=logging_steps,
         save_total_limit=2,  # Only keep the last 2 checkpoints
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
         report_to="wandb" if args.wandb  else "none", # ee5f5f4d8ea5f77b94eddbf412a4426a08b9451c
         push_to_hub=False,
     )
+
     
     if adapter:
         trainer = AdapterTrainer(
@@ -156,14 +190,14 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
             args=training_args,
             train_dataset=tokenized_ds['train'],
             eval_dataset=tokenized_ds['validation'],
-            compute_metrics=compute_metrics)
+            compute_metrics=lambda p: compute_metrics(p, task_name=task_name))
     else:
         trainer = Trainer(
             model=model,
             args=training_args,
             train_dataset=tokenized_ds['train'],
             eval_dataset=tokenized_ds['validation'],
-            compute_metrics=compute_metrics)
+            compute_metrics=lambda p: compute_metrics(p, task_name=task_name))
 
     try:
         trainer.train()
@@ -179,7 +213,7 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
 
 def tokenize_and_align_labels(examples,tokenizer):
     examples_tokens = examples["tokens"]
-    tokenized_inputs = tokenizer(examples_tokens, truncation=True, is_split_into_words=True)
+    tokenized_inputs = tokenizer(examples_tokens, padding="max_length",truncation=True, is_split_into_words=True)
 
     labels = []
     examples_ner= examples[f"ner_tags"]
@@ -247,13 +281,13 @@ def main():
         raise ValueError("task argument must be either 'ast' or 'ner'")
     
     if args.i2b2 == 'all':
-        train_data, valid_data, test_data = _split_data(all_data,args.frac)
+        train_data, valid_data, test_data = _split_data(all_data,args.frac, task_name)
     elif args.i2b2 == 'beth_and_partners':
-        train_data, valid_data, test_data = _split_data(beth_and_partners_data,args.frac)
+        train_data, valid_data, test_data = _split_data(beth_and_partners_data,args.frac, task_name)
     else:
         raise ValueError("i2b2 argument must be either 'all' or 'beth_and_partners'")
     
-    ds = _create_datasets(train_data,valid_data, test_data)
+    ds = _create_datasets(train_data,valid_data, test_data,task_name)
 
     if args.hd == 'arm':
         # FOR MAC
@@ -303,7 +337,7 @@ def main():
         tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
         
     if task_name == 'ner':
-        tokenized_ds = ds.map(tokenize_and_align_labels, batched=True)
+        tokenized_ds = ds.map(lambda example: tokenize_and_align_labels(example, tokenizer), batched=True)
 
     tokenized_ds.set_format("torch")
     # Assign use of adapter or not
@@ -360,15 +394,15 @@ def main():
         timestamp = int(time.time())
         os.environ["WANDB_RUN_NAME"] = f"{task_name}-{args.model}-{args.finetune}{is_adapter}-{timestamp}"
     
-    train(tokenized_ds,model,tokenizer,args.adapter,args.lr,args.epochs,output_dir, device, task_name, args)
+    train(tokenized_ds,model,tokenizer,args.adapter,args.lr,args.epochs,args.weight_decay,args.batch,args.logging_steps,output_dir, device, task_name, args)
 
 
     # TODO
     # update to new adapters version
     # evaluate() - calculate f1 score
     # log experiments resutls - Table 1 ( in the paper)
-    # Hyperparams tuning (lr) what else ??
-    # save weights - maybe different output_dir for each experiments
+    # Hyperparams tuning (lr) what else ??  added batch size, weight decay
+    # save weights - maybe different output_dir for each experiments, add one for each task
     # load weights to test inference
     # load single tasks adapters
     # train adapters in parallel
