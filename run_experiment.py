@@ -179,7 +179,7 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
         save_total_limit=2,  # Only keep the last 2 checkpoints
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
-        report_to="wandb" if args.wandb  else "none", # ee5f5f4d8ea5f77b94eddbf412a4426a08b9451c
+        report_to="wandb" if args.wandb else "none", # ee5f5f4d8ea5f77b94eddbf412a4426a08b9451c
         push_to_hub=False,
     )
 
@@ -390,10 +390,16 @@ def main():
         os.environ["WANDB_PROJECT"] = "clinical-bert"  
         os.environ["WANDB_LOG_MODEL"] = "checkpoint"
         os.environ["WANDB_API_KEY"] = args.wandb_api_key
-        is_adapter = "-adapter" if args.adapter else ""
+        is_type = "adapter" if args.adapter else "finetune"
         timestamp = int(time.time())
-        os.environ["WANDB_RUN_NAME"] = f"{task_name}-{args.model}-{args.finetune}{is_adapter}-{timestamp}"
-    
+
+        # Create wandb run name
+        if args.adapter:
+            wandb_run_name = f"{task_name}-{args.model}-{args.i2b2}-{is_type}-{args.adapter_method}-{timestamp}"
+        else:
+            wandb_run_name = f"{task_name}-{args.model}-{args.i2b2}-{is_type}-{args.finetune}-{timestamp}"
+        os.environ["WANDB_RUN_NAME"] = f"{wandb_run_name}"
+
     train(tokenized_ds,model,tokenizer,args.adapter,args.lr,args.epochs,args.weight_decay,args.batch,args.logging_steps,output_dir, device, task_name, args)
 
 
