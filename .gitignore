@@ -3,6 +3,8 @@ desktop.ini
 =======
 # Ignore log files
 # *.log
+config.yaml
+
 
 # Ignore the cs7643-a5 environment
 clinbert_trainer/
@@ -12,7 +14,6 @@ cs7643-a5/
 *.pyc
 *.pt
 *.pth
-*.yaml
 .idea/
 .ipynb_checkpoints/
 .models/
