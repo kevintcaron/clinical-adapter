@@ -233,10 +233,12 @@ def tokenize_and_align_labels(examples,tokenizer):
 
     tokenized_inputs["labels"] = labels
     return tokenized_inputs
+
 def main():
 
     parser = _setup_parser()
-    args = parser.parse_args()
+    args, overriding_args = parser.parse_known_args()
+
     with open(args.config) as f:
         config = yaml.safe_load(f)
 
@@ -244,14 +246,21 @@ def main():
         for k, v in config[key].items():
             setattr(args, k, v)
 
+    #overwriting config with args from commandline for hyperparameter tuning
+    for item in overriding_args:
+        key, value = item.split('=')
+        key = key.lstrip('-')
+        if '.' in value:
+            value = float(value)
+        else:
+            value = int(value)
+        setattr(args, key, value)
     # Print all arguments
     print()
     print("Arguments:")
     for k, v in vars(args).items():
         print(f"{k}: {v}")
     print()
-
-    
 
     preprocessed_data_path = "Data/preprocessed-data"
     train_data_path = "Data/concept_assertion_relation_training_data"
@@ -387,7 +396,7 @@ def main():
     # Set up wandb if True
     if args.wandb:
         # Set up wandb
-        os.environ["WANDB_PROJECT"] = "clinical-bert"  
+        os.environ["WANDB_PROJECT"] = "clinical-adapter"  
         os.environ["WANDB_LOG_MODEL"] = "checkpoint"
         os.environ["WANDB_API_KEY"] = args.wandb_api_key
         is_type = "adapter" if args.adapter else "finetune"
