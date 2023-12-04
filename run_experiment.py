@@ -406,7 +406,7 @@ def main():
     # Set up wandb if True
     if args.wandb:
         # Set up wandb
-        os.environ["WANDB_PROJECT"] = "clinical-adapter"  
+        os.environ["WANDB_PROJECT"] = "final-clinical-adapter"  
         os.environ["WANDB_LOG_MODEL"] = "checkpoint"
         os.environ["WANDB_API_KEY"] = args.wandb_api_key
         is_type = "adapter" if args.adapter else "finetune"
