@@ -308,7 +308,7 @@ class AssertionDatai2b2():
         print("total number of combined examples:", len(all_line_data_filtered_df))
         print()
 
-        return training_line_data_filtered_df, all_line_data_filtered_df
+        return training_line_data_filtered_df, test_line_data_filtered_df, all_line_data_filtered_df
 
     def load_assertion_i2b2_data_from_file(self):
         cwd  = os.getcwd()

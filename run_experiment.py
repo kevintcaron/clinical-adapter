@@ -40,23 +40,29 @@ def _split_data(all_line_data_filtered_df,frac, test_data=None, i2b2='all',task_
     if task_name == 'ast':
       X = all_line_data_filtered_df_frac['new_line']
       y = all_line_data_filtered_df_frac['label']
-      X_train, X_test_valid, y_train, y_test_valid = train_test_split(X, y, test_size=0.2, stratify=y, random_state=seed)
-      X_test, X_valid, y_test, y_valid = train_test_split(X_test_valid, y_test_valid, test_size=0.5, random_state=seed, stratify=y_test_valid)
+      X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, stratify=y, random_state=seed)
+      if isinstance(test_data, pd.DataFrame):
+        X_test = test_data['new_line']
+        y_test = test_data['label']
     elif task_name == 'ner':
       X = all_line_data_filtered_df_frac['tokens']
       y = all_line_data_filtered_df_frac['ner_tags']
-      X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.1, random_state=seed)
-      if i2b2 == 'beth_and_partners':
-        X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.1, random_state=seed)
-      elif i2b2 == 'all':
+      X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=seed)
+
+      if isinstance(test_data, pd.DataFrame):
         X_test = test_data['tokens']
         y_test = test_data['ner_tags']
-    
+    if not isinstance(test_data, pd.DataFrame):
+        X_test = X_valid
+        y_test = y_valid
 
     print(f"X shape {X.shape} y shape : {y.shape}")
     print(f"X_train shape {X_train.shape} y_train shape : {y_train.shape}")
     print(f"X_val shape {X_valid.shape} y_val shape : {y_valid.shape}")
-    print(f"X_test shape {X_test.shape} y_test shape : {y_test.shape}")
+    if isinstance(test_data, pd.DataFrame):
+        print(f"X_test shape {X_test.shape} y_test shape : {y_test.shape}")
+
+
 
     return (X_train,y_train),(X_valid,y_valid),(X_test ,y_test)
 
@@ -275,7 +281,7 @@ def main():
                                  train_data_path=train_data_path,
                                  reference_test_data_path=reference_test_data_path,
                                  test_data_path=test_data_path)
-        beth_and_partners_data, all_data = ast_i2b2.load_assertion_i2b2_data()
+        beth_and_partners_data, test_data, all_data = ast_i2b2.load_assertion_i2b2_data()
         id2label = {0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'}
 
     elif task_name == 'ner':
@@ -283,7 +289,8 @@ def main():
                                  train_data_path=train_data_path,
                                  reference_test_data_path=reference_test_data_path,
                                  test_data_path=test_data_path)
-        beth_and_partners_data, test_data = ner_i2b2.load_concept_i2b2_data()    
+        beth_and_partners_data, test_data = ner_i2b2.load_concept_i2b2_data()
+        all_data = pd.concat([beth_and_partners_data,test_data],ignore_index=True)
         id2label = {0: "O",1: "B-test",2: "I-test",3: "B-problem",4: "I-problem",5: "B-treatment",6: "I-treatment"}
         label2id = {"O": 0,"B-test": 1,"I-test": 2,"B-problem": 3,"I-problem": 4,"B-treatment": 5,"I-treatment": 6}
 
@@ -292,9 +299,9 @@ def main():
         raise ValueError("task argument must be either 'ast' or 'ner'")
     
     if args.i2b2 == 'all':
-        train_data, valid_data, test_data = _split_data(all_data,args.frac,test_data=test_data, i2b2='all', task_name=task_name)
+        train_data, valid_data, test_data = _split_data(all_data,args.frac,test_data=None, i2b2='all', task_name=task_name)
     elif args.i2b2 == 'beth_and_partners':
-        train_data, valid_data, test_data = _split_data(beth_and_partners_data,args.frac, test_data=None, i2b2='beth_and_partners', task_name=task_name)
+        train_data, valid_data, test_data = _split_data(beth_and_partners_data,args.frac, test_data=test_data, i2b2='beth_and_partners', task_name=task_name)
     else:
         raise ValueError("i2b2 argument must be either 'all' or 'beth_and_partners'")
     
@@ -345,7 +352,8 @@ def main():
         tokenized_ds = ds.map(tokenize_function_ast, batched=True)
         tokenized_ds = tokenized_ds.rename_column("label", "labels")
         tokenized_ds = tokenized_ds.remove_columns(["new_line"])
-        tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
+        # if "__index_level_0__" in tokenized_ds.columns:
+        #     tokenized_ds = tokenized_ds.remove_columns(["__index_level_0__"])
         
     if task_name == 'ner':
         tokenized_ds = ds.map(lambda example: tokenize_and_align_labels(example, tokenizer), batched=True)
