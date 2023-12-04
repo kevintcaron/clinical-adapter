@@ -48,7 +48,7 @@ def _split_data(all_line_data_filtered_df,frac, test_data=None, i2b2='all',task_
       X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.1, random_state=seed)
       if i2b2 == 'beth_and_partners':
         X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.1, random_state=seed)
-      elif i2b2 == 'all' and test_data:
+      elif i2b2 == 'all' and isinstance(test_data, pd.DataFrame):
         X_test = test_data['tokens']
         y_test = test_data['ner_tags']
     
