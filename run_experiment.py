@@ -31,7 +31,7 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 # spacy.util.fix_random_seed(seed)
 
-def _split_data(all_line_data_filtered_df,frac, task_name='ast'):
+def _split_data(all_line_data_filtered_df,frac, test_data=None, i2b2='all',task_name='ast'):
     all_line_data_filtered_df_frac = all_line_data_filtered_df.sample(frac=frac).copy()
 
     print("fraction of examples to used for training: {:.2f}".format(frac))
@@ -45,10 +45,12 @@ def _split_data(all_line_data_filtered_df,frac, task_name='ast'):
     elif task_name == 'ner':
       X = all_line_data_filtered_df_frac['tokens']
       y = all_line_data_filtered_df_frac['ner_tags']
-      # print(X,y)
-      # print(len(X),len(y))
-      X_train, X_test_valid, y_train, y_test_valid = train_test_split(X, y, test_size=0.2, random_state=seed)
-      X_test, X_valid, y_test, y_valid = train_test_split(X_test_valid, y_test_valid, test_size=0.5, random_state=seed)
+      X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.1, random_state=seed)
+      if i2b2 == 'beth_and_partners':
+        X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.1, random_state=seed)
+      elif i2b2 == 'all':
+        X_test = test_data['tokens']
+        y_test = test_data['ner_tags']
     
 
     print(f"X shape {X.shape} y shape : {y.shape}")
@@ -281,18 +283,18 @@ def main():
                                  train_data_path=train_data_path,
                                  reference_test_data_path=reference_test_data_path,
                                  test_data_path=test_data_path)
-        beth_and_partners_data, all_data = ner_i2b2.load_concept_i2b2_data()    
+        beth_and_partners_data, test_data = ner_i2b2.load_concept_i2b2_data()    
         id2label = {0: "O",1: "B-test",2: "I-test",3: "B-problem",4: "I-problem",5: "B-treatment",6: "I-treatment"}
         label2id = {"O": 0,"B-test": 1,"I-test": 2,"B-problem": 3,"I-problem": 4,"B-treatment": 5,"I-treatment": 6}
 
-        #ATTENTION : for NER tasks, the test data is not included, so beth_and_partners and all_data are EXACTLY the same
+        
     else:
         raise ValueError("task argument must be either 'ast' or 'ner'")
     
     if args.i2b2 == 'all':
-        train_data, valid_data, test_data = _split_data(all_data,args.frac, task_name)
+        train_data, valid_data, test_data = _split_data(all_data,args.frac,test_data=test_data, i2b2='all', task_name=task_name)
     elif args.i2b2 == 'beth_and_partners':
-        train_data, valid_data, test_data = _split_data(beth_and_partners_data,args.frac, task_name)
+        train_data, valid_data, test_data = _split_data(beth_and_partners_data,args.frac, test_data=None, i2b2='beth_and_partners', task_name=task_name)
     else:
         raise ValueError("i2b2 argument must be either 'all' or 'beth_and_partners'")
     

@@ -489,6 +489,8 @@ class ConceptDatai2b2():
 
     def load_concept_i2b2_data(self):
         cwd  = os.getcwd()
-        path = os.path.join(cwd, f"{self.preprocessed_data_path}", "concept_data_final.csv")
-        data = pd.read_csv(path)
-        return data, data
+        path_beth_and_partners = os.path.join(cwd, f"{self.preprocessed_data_path}", "concept_data_final.csv")
+        path_test = os.path.join(cwd, f"{self.preprocessed_data_path}", "concept_data_test.csv")
+        beth_and_partners = pd.read_csv(path_beth_and_partners)
+        test_data = pd.read_csv(path_test)
+        return beth_and_partners, test_data
