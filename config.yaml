@@ -15,5 +15,5 @@ Train:
   wandb_api_key: 271574447bdb191e432e3500768bb709afc7d7d3 #set your own api key here #Niharika : 271574447bdb191e432e3500768bb709afc7d7d3
 
 data:
-  i2b2: beth_and_partners # all or beth_and_partners
+  i2b2: all # all or beth_and_partners
   frac: 0.1
