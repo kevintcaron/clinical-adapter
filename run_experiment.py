@@ -48,7 +48,7 @@ def _split_data(all_line_data_filtered_df,frac, test_data=None, i2b2='all',task_
       X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.1, random_state=seed)
       if i2b2 == 'beth_and_partners':
         X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.1, random_state=seed)
-      elif i2b2 == 'all':
+      elif i2b2 == 'all' and test_data:
         X_test = test_data['tokens']
         y_test = test_data['ner_tags']
     
@@ -277,6 +277,7 @@ def main():
                                  test_data_path=test_data_path)
         beth_and_partners_data, all_data = ast_i2b2.load_assertion_i2b2_data()
         id2label = {0: 'PRESENT', 1: 'ABSENT', 2:'POSSIBLE'}
+        test_data = None
 
     elif task_name == 'ner':
         ner_i2b2 = ConceptDatai2b2(preprocessed_data_path=preprocessed_data_path,
@@ -286,7 +287,7 @@ def main():
         beth_and_partners_data, test_data = ner_i2b2.load_concept_i2b2_data()    
         id2label = {0: "O",1: "B-test",2: "I-test",3: "B-problem",4: "I-problem",5: "B-treatment",6: "I-treatment"}
         label2id = {"O": 0,"B-test": 1,"I-test": 2,"B-problem": 3,"I-problem": 4,"B-treatment": 5,"I-treatment": 6}
-
+        all_data = beth_and_partners_data
         
     else:
         raise ValueError("task argument must be either 'ast' or 'ner'")
