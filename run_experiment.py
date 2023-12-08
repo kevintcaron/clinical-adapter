@@ -180,14 +180,14 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
         num_train_epochs= epochs,
         weight_decay=weight_decay,
         per_device_train_batch_size=batch,
-        evaluation_strategy="epoch",
-        save_strategy="epoch",  # Save model checkpoints at the end of each epoch 
+        evaluation_strategy="epoch", # "epoch",
+        save_strategy="no",  # Save model checkpoints at the end of each epoch
         logging_dir="./logs", 
         logging_steps=logging_steps,
-        save_total_limit=2,  # Only keep the last 2 checkpoints
-        load_best_model_at_end=True,
+        save_total_limit=0, # 2,  # Only keep the last 2 checkpoints
+        load_best_model_at_end=False,
         metric_for_best_model="accuracy",
-        report_to="wandb" if args.wandb else "none", # ee5f5f4d8ea5f77b94eddbf412a4426a08b9451c
+        report_to="wandb" if args.wandb else "none",
         push_to_hub=False,
     )
 
@@ -228,6 +228,16 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
     except Exception as e:
         print(e)
         print("Model Fine-tuning Failed")
+
+    train_predictions = trainer.predict(tokenized_ds["train"])
+    print("train metrics",train_predictions.metrics)
+
+    valid_predictions = trainer.predict(tokenized_ds["validation"])
+    print("valid metrics",valid_predictions.metrics)
+
+    test_predictions = trainer.predict(tokenized_ds["test"])
+    print("test metrics",test_predictions.metrics)
+
 
 def tokenize_and_align_labels(examples,tokenizer):
     examples_tokens = examples["tokens"]
@@ -292,9 +302,26 @@ def main():
         key = key.lstrip('-')
         if '.' in value or 'e' in value:
             value = float(value)
-        else:
+        elif key == "reduction_factor":
             value = int(value)
+        elif key == "batch":
+            value = int(value)
+        elif key == "epochs":
+            value = int(value)
+        else:
+            pass
+
+        # if '.' in value:
+        #     value = float(value)
+        # else:
+        #     value = int(value)
+        print(f"overwriting config with {key}={value}")
+        print(f"value has type {type(value)}")
+        print()
+
         setattr(args, key, value)
+
+
     # Print all arguments
     print()
     print("Arguments:")
