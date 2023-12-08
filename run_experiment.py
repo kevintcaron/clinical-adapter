@@ -219,6 +219,16 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
         print(e)
         print("Model Fine-tuning Failed")
 
+    train_predictions = trainer.predict(tokenized_ds["train"])
+    print("train metrics",train_predictions.metrics)
+
+    valid_predictions = trainer.predict(tokenized_ds["validation"])
+    print("valid metrics",valid_predictions.metrics)
+
+    test_predictions = trainer.predict(tokenized_ds["test"])
+    print("test metrics",test_predictions.metrics)
+
+
 def tokenize_and_align_labels(examples,tokenizer):
     examples_tokens = examples["tokens"]
     tokenized_inputs = tokenizer(examples_tokens, padding="max_length",truncation=True, is_split_into_words=True)
