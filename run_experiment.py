@@ -32,18 +32,25 @@ np.random.seed(seed)
 # spacy.util.fix_random_seed(seed)
 
 def _split_data(all_line_data_filtered_df,frac, test_data=None, i2b2='all',task_name='ast'):
+    
+    if task_name == 'ast':
+        lbl2id ={'absent': 1 ,'possible': 2, 'present':0}
+        all_line_data_filtered_df['label_id'] = all_line_data_filtered_df.apply(lambda x: lbl2id[x['label']],axis=1)
+    
+    if isinstance(test_data, pd.DataFrame):
+        test_data['label_id'] =  test_data.apply(lambda x: lbl2id[x['label']],axis=1)
+    
     all_line_data_filtered_df_frac = all_line_data_filtered_df.sample(frac=frac).copy()
-
     print("fraction of examples to used for training: {:.2f}".format(frac))
     print("number of examples after sampling: {:,}\n".format(all_line_data_filtered_df_frac.shape[0]))
     # print(all_line_data_filtered_df)
     if task_name == 'ast':
       X = all_line_data_filtered_df_frac['new_line']
-      y = all_line_data_filtered_df_frac['label']
+      y = all_line_data_filtered_df_frac['label_id']
       X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, stratify=y, random_state=seed)
       if isinstance(test_data, pd.DataFrame):
         X_test = test_data['new_line']
-        y_test = test_data['label']
+        y_test = test_data['label_id']
     elif task_name == 'ner':
       X = all_line_data_filtered_df_frac['tokens']
       y = all_line_data_filtered_df_frac['ner_tags']
@@ -73,20 +80,24 @@ def _create_datasets(train,valid,test, task='ast'):
     (X_test ,y_test)= test
     print()
     if task == 'ast':
-        print("Encoding Labels .....")
-        encoder = LabelEncoder()
-        encoder.fit(y_train)
-        y_train_encode = np.asarray(encoder.transform(y_train))
-        y_valid_encode = np.asarray(encoder.transform(y_valid))
-        y_test_encode = np.asarray(encoder.transform(y_test))
+        #print("Encoding Labels .....")
+        #encoder = LabelEncoder()
+        #encoder.fit(y_train)
+        #y_train_encode = np.asarray(encoder.transform(y_train))
+        #y_valid_encode = np.asarray(encoder.transform(y_valid))
+        #y_test_encode = np.asarray(encoder.transform(y_test))
 
         train_df = pd.DataFrame(X_train)
         valid_df = pd.DataFrame(X_valid)
         test_df = pd.DataFrame(X_test)
 
-        train_df['label'] = y_train_encode.tolist()
-        valid_df['label'] = y_valid_encode.tolist()
-        test_df['label'] = y_test_encode.tolist()
+        #train_df['label'] = y_train_encode.tolist()
+        #valid_df['label'] = y_valid_encode.tolist()
+        #test_df['label'] = y_test_encode.tolist()
+        
+        train_df['label'] = y_train
+        valid_df['label'] = y_valid
+        test_df['label'] = y_test
         
     elif task == 'ner':
         train_df = pd.DataFrame()
@@ -125,7 +136,7 @@ def compute_metrics(eval_pred, task_name):
     if task_name == 'ast':
       predictions = np.argmax(logits, axis=-1)
       accuracy = accuracy_score(labels, predictions)
-      precision = precision_score(labels, predictions, average='weighted')
+      precision = precision_score(labels, predictions, average='weighted',zero_division=0)
       recall = recall_score(labels, predictions, average='weighted')
       f1 = f1_score(labels, predictions, average='weighted')
 
@@ -173,6 +184,8 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
     print()
     print(f"Number of trainable parameters: {num_params}")
     print()
+    
+    print(tokenized_ds)
 
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -210,7 +223,8 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
     try:
         trainer.train()
         if adapter:
-            model.save_adapter(f"adapter_{task_name}", task_name,with_head=True)
+            model.save_adapter(f"adapter_{task_name}_{args.adapter_method}_{args.model}", task_name,with_head=True)
+            model.save_pretrained(output_dir)
         else:
             model.save_pretrained(output_dir)
             tokenizer.save_pretrained(output_dir)
@@ -369,7 +383,7 @@ def main():
 
     def tokenize_function_ast(example):
         return tokenizer(example["new_line"],   padding="max_length", truncation=True)
-    
+    print("ds:",ds)
     # Takes ds dataset and tokenizes
     if task_name == 'ast':
         special_tokens_dict = {"additional_special_tokens": ["[entity]"]}
