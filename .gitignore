@@ -3,11 +3,12 @@ desktop.ini
 =======
 # Ignore log files
 config.yaml
-
+wandb/
+desktop.ini
 
 # Ignore the cs7643-a5 environment
-clinbert_trainer/
-clinicalbert_trainer/
+clinbert_trainer/*
+clinicalbert_trainer/*
 cs7643-a5/
 *.bin
 *.pyc

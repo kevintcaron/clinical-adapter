@@ -210,11 +210,21 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
     try:
         trainer.train()
         if adapter:
-            model.save_adapter(f"adapter_{task_name}", task_name,with_head=True)
+            model.save_adapter(f"adapter_{task_name}_DoubleSeqBnConfig_bert", task_name,with_head=True)
+            model.save_pretrained(output_dir)
         else:
             model.save_pretrained(output_dir)
             tokenizer.save_pretrained(output_dir)
         print("Model Fine-tuning Completed")
+
+        train_predictions = trainer.predict(tokenized_ds["train"])
+        print("train_metrics",train_predictions.metrics)
+
+        valid_predictions = trainer.predict(tokenized_ds["validation"])
+        print("validation_metrics",valid_predictions.metrics)
+
+        test_predictions = trainer.predict(tokenized_ds["test"])
+        print("test_metrics",test_predictions.metrics)
     except Exception as e:
         print(e)
         print("Model Fine-tuning Failed")
@@ -242,6 +252,28 @@ def tokenize_and_align_labels(examples,tokenizer):
     tokenized_inputs["labels"] = labels
     return tokenized_inputs
 
+def get_prediction_ner(text, path_tokenizer, path_model, task='ner'):
+
+  tokenizer = AutoTokenizer.from_pretrained(path_tokenizer)
+  inputs = tokenizer(text, return_tensors="pt")
+
+  if task == 'ner': 
+    model = AutoModelForTokenClassification.from_pretrained(path_model)
+  elif task == 'ast':
+    model = AutoModelForSequenceClassification.from_pretrained(path_model)
+  with torch.no_grad():
+      logits = model(**inputs).logits
+    
+  predictions = torch.argmax(logits, dim=2)
+  predicted_token_class = [model.config.id2label[t.item()] for t in predictions[0]]
+  return predicted_token_class
+
+# example function to call this
+# text = "test test test test test test"
+# path_tokenizer = "emilyalsentzer/Bio_Discharge_Summary_BERT"
+# path_model = "/content/drive/MyDrive/DL/DL project /clinical-adapter/bert_trainer/ner-1"  
+# get_prediction_ner(text, path_tokenizer, path_model)
+
 def main():
 
     parser = _setup_parser()
@@ -258,7 +290,7 @@ def main():
     for item in overriding_args:
         key, value = item.split('=')
         key = key.lstrip('-')
-        if '.' in value:
+        if '.' in value or 'e' in value:
             value = float(value)
         else:
             value = int(value)
