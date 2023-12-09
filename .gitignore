@@ -5,6 +5,7 @@ desktop.ini
 config.yaml
 wandb/
 desktop.ini
+adapter-fusion-weights/
 
 # Ignore the cs7643-a5 environment
 clinbert_trainer/*
