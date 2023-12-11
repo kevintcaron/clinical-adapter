@@ -1,8 +1,8 @@
 # clinical-adapter
 GA Tech CS7643 Group Project implementing adapter-transformers for clinical entity extraction and assertion classification tasks.
 
-Overleaf Report (view link): 
-https://www.overleaf.com/read/fdjpfsdhztfp#5352ea
+Overleaf Report (read only link): 
+https://www.overleaf.com/read/nckbrhtkgsbc#8e823a
 
 Example Overleaf (for refernce): 
 https://www.overleaf.com/project/5f5ec061aa94370001943266
