@@ -14,8 +14,12 @@ models/
 tmp_trainer/
 wandb/
 data/
+adapter-fusion-weights/
+adapter_ast/
+adapters/
 
 cs7643-a5/
+*.yaml
 *.bin
 *.pyc
 *.pt
