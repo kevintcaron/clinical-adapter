@@ -1,19 +1,19 @@
 Train:
   task: ast #ner or ast
   model: bert # bert or clinicalbert
-  finetune: head # head or full
-  lr: 0.00001 # 1e-5
+  finetune: head # head, bighead or full
+  lr: 0.00001
   epochs: 2
   batch: 16
   weight_decay : 0.002
   adapter: False # True or False
   adapter_method: SeqBnConfig # SeqBnConfig,DoubleSeqBnConfig,Houlsby need to change to new adapters : seq_bn ,seq_bn,double_seq_bn  - https://docs.adapterhub.ml/overview.html
-  reduction_factor: 64
+  reduction_factor: 16 # for adapters only
   logging_steps: 500
-  hd: cpu # intel or arm
+  hd: intel # intel or arm
   wandb: False # True or False
-  wandb_api_key: 271574447bdb191e432e3500768bb709afc7d7d3 #set your own api key here #Niharika : 271574447bdb191e432e3500768bb709afc7d7d3
+  wandb_api_key: # your wandb api key
 
 data:
-  i2b2: all # all or beth_and_partners
-  frac: 0.1
+  i2b2: beth_and_partners # all or beth_and_partners
+  frac: 1
