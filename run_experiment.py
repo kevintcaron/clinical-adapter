@@ -124,12 +124,6 @@ def _create_datasets(train,valid,test, task='ast'):
 
     return ds
 
-# def compute_metrics(eval_pred):
-#     metric = evaluate.load("accuracy")
-#     logits, labels = eval_pred
-#     predictions = np.argmax(logits, axis=-1)
-#     return metric.compute(predictions=predictions, references=labels)
-
 def compute_metrics(eval_pred, task_name):
     # print(eval_pred)
     logits, labels = eval_pred
@@ -182,9 +176,15 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
     model = model.to(device)
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print()
+    print(f"Output directory: {output_dir}")
     print(f"Number of trainable parameters: {num_params}")
     print()
-    
+    # print all the trainable parameters and the number for each layer
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name, param.data.shape)
+    print()
+
     print(tokenized_ds)
 
     training_args = TrainingArguments(
@@ -194,11 +194,11 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
         weight_decay=weight_decay,
         per_device_train_batch_size=batch,
         evaluation_strategy="epoch", # "epoch",
-        save_strategy="no",  # Save model checkpoints at the end of each epoch
+        save_strategy="epoch",  # Save model checkpoints at the end of each epoch
         logging_dir="./logs", 
         logging_steps=logging_steps,
         save_total_limit=0, # 2,  # Only keep the last 2 checkpoints
-        load_best_model_at_end=False,
+        load_best_model_at_end=True,
         metric_for_best_model="accuracy",
         report_to="wandb" if args.wandb else "none",
         push_to_hub=False,
@@ -227,7 +227,7 @@ def train(tokenized_ds:Dataset,model:AutoModel,tokenizer:AutoTokenizer,adapter:b
             model.save_pretrained(output_dir)
         else:
             model.save_pretrained(output_dir)
-            tokenizer.save_pretrained(output_dir)
+
         print("Model Fine-tuning Completed")
     except Exception as e:
         print(e)
@@ -294,10 +294,6 @@ def main():
         else:
             pass
 
-        # if '.' in value:
-        #     value = float(value)
-        # else:
-        #     value = int(value)
         print(f"overwriting config with {key}={value}")
         print(f"value has type {type(value)}")
         print()
@@ -370,11 +366,11 @@ def main():
     # Assign model and output directory
     if args.model == 'clinicalbert':
         pretrained_model_name_or_path = "emilyalsentzer/Bio_Discharge_Summary_BERT"   #"emilyalsentzer/Bio_ClinicalBERT"  TBD
-        output_dir= "clinicalbert_trainer/" + str(task_name)
+        output_dir= "fine-tuned_clinicalbert/" + str(task_name) + "_" + str(args.finetune)
         os.makedirs(output_dir, exist_ok=True)
     elif args.model == "bert":
         pretrained_model_name_or_path = "bert-base-uncased"
-        output_dir= "bert_trainer/" + str(task_name)
+        output_dir= "fine-tuned_bert/" + str(task_name) + "_" + str(args.finetune)
         os.makedirs(output_dir, exist_ok=True)
     else:
         raise ValueError("model argument must be either 'clinicalbert' or 'bert'")
@@ -436,14 +432,27 @@ def main():
         # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
         model.resize_token_embeddings(len(tokenizer))
     
-        # If fine-tuning head only, freeze the base model
-        if args.finetune == 'head':
+        # If fine-tuning head only, freeze the base model (everything except top two layers)
+        if args.finetune == 'bighead':
             for name, layer in model.base_model.named_parameters():
                 layer.requires_grad = False
+                if name.startswith('classifier'):
+                    layer.requires_grad = True
+                if name.startswith('pooler'):
+                    layer.requires_grad = True
+                if name.startswith('encoder.layer.10'):
+                    layer.requires_grad = True
+                if name.startswith('encoder.layer.11'):
+                    layer.requires_grad = True
+        elif args.finetune == 'head':
+            for name, layer in model.base_model.named_parameters():
+                layer.requires_grad = False
+                if name.startswith('classifier'):
+                    layer.requires_grad = True
         elif args.finetune == 'full':
             pass
         else:
-            raise ValueError("finetune argument must be either 'head' or 'full'")
+            raise ValueError("finetune argument must be either 'bighead', 'head' or 'full'")
 
     # Set up wandb if True
     if args.wandb:
